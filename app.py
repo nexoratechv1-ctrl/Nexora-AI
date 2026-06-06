@@ -3,6 +3,7 @@ import re
 import sqlite3
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+from difflib import get_close_matches
 
 app = Flask(__name__)
 CORS(app)
@@ -12,14 +13,17 @@ DB_NAME = "nexora.db"
 
 # Cache for teachings
 teachings_cache = {}
+# Cache ya maneno yote kwa ajili ya spelling correction
+all_keywords = []
 
 def load_cache():
-    global teachings_cache
+    global teachings_cache, all_keywords
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT question, answer FROM teachings")
     rows = c.fetchall()
     teachings_cache = {q: a for q, a in rows}
+    all_keywords = list(teachings_cache.keys())
     conn.close()
     print(f"✅ Loaded {len(teachings_cache)} teachings into cache")
 
@@ -37,6 +41,10 @@ def init_db():
             ("jina lako", "Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓🚀"),
             ("unaitwa nani", "Mimi ni Nexora AI! Nimetengenezwa na Denis Albert, mwanafunzi wa St. Amedeus. 😊"),
             ("rangi yako", "Rangi yangu ni zambarau na bluu! 💜💙"),
+            ("sayansi", "Sayansi ni njia ya kuelewa ulimwengu wetu kwa kutumia uchunguzi, majaribio, na mantiki. Inajumuisha fizikia, kemia, biolojia, na matawi mengine. 🔬✨"),
+            ("fizikia", "Fizikia ni tawi la sayansi linalochunguza nguvu, mwendo, nishati, na sheria zinazotawala ulimwengu. Inasaidia kuelezea jinsi vitu vinavyofanya kazi! ⚡🔭"),
+            ("kemia", "Kemia ni tawi la sayansi linalochunguza vitu, muundo wake, na mabadiliko yanayotokea. Inahusika na molekuli, atomi, na athari za kemikali! 🧪⚗️"),
+            ("biolojia", "Biolojia ni tawi la sayansi linalochunguza viumbe hai, mimea, wanyama, na wanadamu. Inaelezea jinsi viumbe wanavyoishi, kukua, na kuzaliana! 🌱🐘"),
         ]
         for q, a in defaults:
             c.execute("INSERT OR IGNORE INTO teachings (question, answer) VALUES (?, ?)", (q, a))
@@ -46,7 +54,7 @@ def init_db():
     load_cache()
 
 def save_teaching(question, answer):
-    global teachings_cache
+    global teachings_cache, all_keywords
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO teachings (question, answer) VALUES (?, ?)", 
@@ -54,32 +62,67 @@ def save_teaching(question, answer):
     conn.commit()
     conn.close()
     teachings_cache[question.lower().strip()] = answer.strip()
+    all_keywords = list(teachings_cache.keys())
 
-def get_exact_answer(question):
+# ========== SMART SPELLING CORRECTION & KEYWORD DETECTION ==========
+def correct_spelling(word):
+    """Correct spelling of a single word based on known keywords"""
+    if word in all_keywords:
+        return word
+    
+    # Find closest match (80% similarity threshold)
+    matches = get_close_matches(word, all_keywords, n=1, cutoff=0.7)
+    if matches:
+        return matches[0]
+    return word
+
+def get_smart_answer(question):
     """
-    Get EXACT answer for the specific question asked.
-    Does NOT list all teachings.
-    Only returns answer if question matches a teaching key.
+    Super smart answer detection:
+    - Corrects spelling errors
+    - Detects any keyword from teachings
+    - Understands different phrasing
     """
     q_lower = question.lower().strip()
     
-    # FIRST: Try exact match
+    # FIRST: Exact match
     if q_lower in teachings_cache:
         return teachings_cache[q_lower]
     
-    # SECOND: Try to find if question contains a teaching key as WHOLE phrase
-    # Sort by length (longest first) to get most specific match
+    # SECOND: Break question into words and correct spelling of each word
+    words = re.findall(r'\b\w+\b', q_lower)
+    
+    # Correct spelling of each word
+    corrected_words = [correct_spelling(word) for word in words]
+    
+    # Check if any corrected word matches a teaching keyword
+    for word in corrected_words:
+        if word in teachings_cache:
+            return teachings_cache[word]
+    
+    # THIRD: Check if question contains any teaching key (as phrase)
+    # Sort by length (longest first) for best match
     sorted_keys = sorted(teachings_cache.keys(), key=len, reverse=True)
     
     for key in sorted_keys:
+        # Direct containment
         if key in q_lower:
-            # Return ONLY the answer for that key, not all teachings
+            return teachings_cache[key]
+        
+        # Check with spelling correction on the key
+        corrected_key = correct_spelling(key)
+        if corrected_key != key and corrected_key in q_lower:
             return teachings_cache[key]
     
-    # THIRD: Try if teaching key is contained in question
+    # FOURTH: Check if any teaching key is similar to any word in question
     for key in sorted_keys:
-        if q_lower in key:
-            return teachings_cache[key]
+        # Split key into words
+        key_words = key.split()
+        for kw in key_words:
+            # Check if key word is similar to any word in question
+            for q_word in words:
+                if get_close_matches(q_word, [kw], n=1, cutoff=0.7):
+                    return teachings_cache[key]
     
     return None
 
@@ -118,6 +161,7 @@ def calculate_math(question):
     try:
         expr = question.lower().replace("ni nini", "").replace("je", "").replace("?", "")
         expr = expr.replace("×", "*").replace("÷", "/").replace("x", "*")
+        # Check for math pattern
         if re.search(r'\d+[\+\-\*\/]\d+', expr):
             result = eval(expr)
             return f"📊 {result}"
@@ -125,30 +169,24 @@ def calculate_math(question):
         pass
     return None
 
-# ========== DIRECT RESPONSES (NO TEACHING RECALL) ==========
-def get_direct_response(question, name):
+# ========== CONVERSATION RESPONSES ==========
+def get_conversation_response(question, name):
     q = question.lower()
     
-    if "jina lako" in q or "unaitwa nani" in q:
-        return f"Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓😊"
-    
-    if "habari" in q or "mambo" in q:
+    # Greetings
+    if any(x in q for x in ["habari", "mambo", "vipi", "how are", "hello", "hi", "sasa"]):
         return f"Habari yangu ni nzuri sana, {name}! 😊 Niko vizuri kabisa. Na wewe habari yako?"
     
-    if "asante" in q:
+    # Thanks
+    if any(x in q for x in ["asante", "shukrani", "thank"]):
         return f"Karibu sana, {name}! 😊 Nafurahi kukusaidia."
     
-    if "mwezi" in q:
-        return "Mwezi ni satelaiti asilia ya Dunia. Umbali: km 384,400. Watu walitua mwezini mwaka 1969! 🌕"
+    # Self introduction
+    if any(x in q for x in ["jina lako", "unaitwa nani", "wewe ni nani", "who are you"]):
+        return f"Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓😊"
     
-    if "tanzania" in q or "nyerere" in q:
-        return "Tanzania nchi yenye historia tajiri! Mlima Kilimanjaro mrefu zaidi Afrika (mita 5,895). Mwalimu Nyerere alikuwa baba wa taifa. 🇹🇿"
-    
-    if "ai" in q or "akili bandia" in q:
-        return "AI (Akili Bandia) ni teknolojia inayojifunza kutoka kwa data. Mimi ni Nexora AI, nimeumbwa na Denis Albert. 🤖"
-    
-    # Default - short and direct, no teaching recall
-    return f"Samahani, {name}. Sijajifunza jibu la swali hili bado. 😊"
+    # Default
+    return f"Samahani, {name}. Sijajifunza jibu la swali hili bado. Unaweza kunifundisha kwa kusema 'Unapoulizwa [swali] jibu [jibu]' 😊"
 
 # ========== FLASK ROUTES ==========
 init_db()
@@ -178,18 +216,18 @@ def chat():
             reply = f"✅ Nimekumbuka {saved_count} mafundisho!"
         return jsonify({"reply": reply})
     
-    # STEP 2: Get EXACT answer from cache (ONE answer only)
-    exact_answer = get_exact_answer(msg)
-    if exact_answer:
-        return jsonify({"reply": exact_answer})
+    # STEP 2: Smart answer with spelling correction
+    smart_answer = get_smart_answer(msg)
+    if smart_answer:
+        return jsonify({"reply": smart_answer})
     
     # STEP 3: Check math
     math_result = calculate_math(msg)
     if math_result:
         return jsonify({"reply": math_result})
     
-    # STEP 4: Direct response (no teaching recall)
-    response = get_direct_response(msg, name)
+    # STEP 4: Conversation response
+    response = get_conversation_response(msg, name)
     return jsonify({"reply": response})
 
 if __name__ == '__main__':
