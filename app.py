@@ -14,7 +14,6 @@ DB_NAME = "nexora.db"
 teachings_cache = {}
 
 def load_cache():
-    """Load all teachings from database into memory cache"""
     global teachings_cache
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -38,7 +37,6 @@ def init_db():
             ("jina lako", "Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓🚀"),
             ("unaitwa nani", "Mimi ni Nexora AI! Nimetengenezwa na Denis Albert, mwanafunzi wa St. Amedeus. 😊"),
             ("rangi yako", "Rangi yangu ni zambarau na bluu! 💜💙"),
-            ("physics-89", "Physics-89 inaweza kumaanisha kozi ya fizikia ya mwaka 1989 au daraja la 89% kwenye fizikia. Hakuna taarifa maalum zaidi. 😊"),
         ]
         for q, a in defaults:
             c.execute("INSERT OR IGNORE INTO teachings (question, answer) VALUES (?, ?)", (q, a))
@@ -57,10 +55,11 @@ def save_teaching(question, answer):
     conn.close()
     teachings_cache[question.lower().strip()] = answer.strip()
 
-def get_answer_from_cache(question):
+def get_exact_answer(question):
     """
-    Get answer directly from cache - returns ONLY ONE answer (the best match)
-    Does NOT list all teachings
+    Get EXACT answer for the specific question asked.
+    Does NOT list all teachings.
+    Only returns answer if question matches a teaching key.
     """
     q_lower = question.lower().strip()
     
@@ -68,16 +67,19 @@ def get_answer_from_cache(question):
     if q_lower in teachings_cache:
         return teachings_cache[q_lower]
     
-    # SECOND: Try to find if question contains any teaching key
-    # But return ONLY THE FIRST match, not all
-    for key, answer in teachings_cache.items():
-        if key in q_lower:
-            return answer  # Return first match only
+    # SECOND: Try to find if question contains a teaching key as WHOLE phrase
+    # Sort by length (longest first) to get most specific match
+    sorted_keys = sorted(teachings_cache.keys(), key=len, reverse=True)
     
-    # THIRD: Try if any teaching key is contained in question
-    for key, answer in teachings_cache.items():
+    for key in sorted_keys:
+        if key in q_lower:
+            # Return ONLY the answer for that key, not all teachings
+            return teachings_cache[key]
+    
+    # THIRD: Try if teaching key is contained in question
+    for key in sorted_keys:
         if q_lower in key:
-            return answer  # Return first match only
+            return teachings_cache[key]
     
     return None
 
@@ -145,6 +147,7 @@ def get_direct_response(question, name):
     if "ai" in q or "akili bandia" in q:
         return "AI (Akili Bandia) ni teknolojia inayojifunza kutoka kwa data. Mimi ni Nexora AI, nimeumbwa na Denis Albert. 🤖"
     
+    # Default - short and direct, no teaching recall
     return f"Samahani, {name}. Sijajifunza jibu la swali hili bado. 😊"
 
 # ========== FLASK ROUTES ==========
@@ -175,10 +178,10 @@ def chat():
             reply = f"✅ Nimekumbuka {saved_count} mafundisho!"
         return jsonify({"reply": reply})
     
-    # STEP 2: Get answer from CACHE (ONE answer only)
-    cached_answer = get_answer_from_cache(msg)
-    if cached_answer:
-        return jsonify({"reply": cached_answer})
+    # STEP 2: Get EXACT answer from cache (ONE answer only)
+    exact_answer = get_exact_answer(msg)
+    if exact_answer:
+        return jsonify({"reply": exact_answer})
     
     # STEP 3: Check math
     math_result = calculate_math(msg)
