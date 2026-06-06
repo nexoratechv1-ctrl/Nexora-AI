@@ -1,33 +1,20 @@
 <!DOCTYPE html>
 <html lang="sw">
 <head>
-    <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#a855f7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Nexora AI">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-
-<script>
-// Register Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/static/sw.js')
-      .then(reg => console.log('Service Worker registered:', reg))
-      .catch(err => console.log('Service Worker error:', err));
-  });
-}
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Nexora AI</title>
+    
+    <!-- PWA Manifest and Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#a855f7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nexora AI">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, 'Segoe UI', 'Inter', sans-serif;
             background: #0f0f13;
@@ -52,7 +39,9 @@ if ('serviceWorker' in navigator) {
             padding: 16px 20px;
             border-bottom: 1px solid rgba(255,255,255,0.06);
             background: #0f0f13;
-            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .logo {
@@ -81,7 +70,17 @@ if ('serviceWorker' in navigator) {
             color: transparent;
         }
 
-        /* Chat area */
+        .logout-btn {
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: #f87171;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        /* Chat Area */
         .chat-area {
             flex: 1;
             overflow-y: auto;
@@ -96,7 +95,7 @@ if ('serviceWorker' in navigator) {
         .chat-area::-webkit-scrollbar-track { background: transparent; }
         .chat-area::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 10px; }
 
-        /* AI message */
+        /* AI Message */
         .message-ai {
             display: flex;
             justify-content: flex-start;
@@ -153,7 +152,7 @@ if ('serviceWorker' in navigator) {
             line-height: 1.65;
         }
 
-        /* User message */
+        /* User Message */
         .message-user {
             display: flex;
             justify-content: flex-end;
@@ -182,7 +181,7 @@ if ('serviceWorker' in navigator) {
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Typing indicator */
+        /* Typing Indicator */
         .typing-indicator {
             display: flex;
             gap: 4px;
@@ -203,7 +202,7 @@ if ('serviceWorker' in navigator) {
             30% { transform: translateY(-6px); opacity: 1; }
         }
 
-        /* ========== INPUT AREA - KAMA DEEPSEEK ========== */
+        /* Input Area */
         .input-wrapper {
             padding: 16px 20px 24px;
             background: #0f0f13;
@@ -246,7 +245,6 @@ if ('serviceWorker' in navigator) {
             color: #5a5a6e;
         }
 
-        /* Buttons ndogo */
         .icon-btn {
             background: transparent;
             border: none;
@@ -311,9 +309,25 @@ if ('serviceWorker' in navigator) {
             .input-wrapper { padding: 12px 16px 20px; }
             .icon-btn { width: 32px; height: 32px; font-size: 1rem; }
             .send-btn { padding: 6px 16px; font-size: 0.8rem; height: 32px; }
-            .mic-btn span, .new-btn span { display: none; }
         }
     </style>
+    
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered:', reg))
+                    .catch(err => console.log('Service Worker error:', err));
+            });
+        }
+        
+        // Logout function
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    </script>
 </head>
 <body>
 <div class="app-container">
@@ -322,6 +336,7 @@ if ('serviceWorker' in navigator) {
             <div class="logo-icon">✦</div>
             <div class="logo-text">Nexora AI</div>
         </div>
+        <button class="logout-btn" onclick="logout()">🚪 Toka</button>
     </div>
 
     <div class="chat-area" id="chatArea">
@@ -330,9 +345,9 @@ if ('serviceWorker' in navigator) {
                 <div class="ai-header">
                     <div class="ai-avatar">✨</div>
                     <span class="ai-name">Nexora AI</span>
-                    <button class="speak-btn" onclick="speakText(this, 'Habari! Tafadhali niambie jina lako.')">🔊 Soma</button>
+                    <button class="speak-btn" id="welcomeSpeakBtn">🔊 Soma</button>
                 </div>
-                <div class="ai-text">Habari! Tafadhali niambie jina lako. 😊🚀</div>
+                <div class="ai-text">Habari! Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 😊🚀</div>
             </div>
         </div>
     </div>
@@ -353,17 +368,14 @@ if ('serviceWorker' in navigator) {
     let isListening = false;
     let recognition = null;
 
-    // Auto-resize textarea - KAMA DEEPSEEK
+    // Auto-resize textarea
     const textarea = document.getElementById('userInput');
-    
     function autoResize() {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     }
-    
     textarea.addEventListener('input', autoResize);
     
-    // Handle Enter key (Shift+Enter for new line, Enter to send)
     textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -412,6 +424,7 @@ if ('serviceWorker' in navigator) {
 
     document.getElementById('voiceBtn').addEventListener('click', startListening);
 
+    // Text-to-Speech
     function speakText(button, text) {
         if (!window.speechSynthesis) return;
         const utterance = new SpeechSynthesisUtterance(text);
@@ -420,10 +433,16 @@ if ('serviceWorker' in navigator) {
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
         const original = button.innerHTML;
-        button.innerHTML = '🔊...';
-        setTimeout(() => { button.innerHTML = original; }, 1500);
+        button.innerHTML = '🔊 Inasoma...';
+        setTimeout(() => { button.innerHTML = original; }, 2000);
     }
 
+    document.getElementById('welcomeSpeakBtn').onclick = function() {
+        const welcomeText = document.querySelector('.ai-text').innerText;
+        speakText(this, welcomeText);
+    };
+
+    // Type effect
     async function typeText(element, text, speed = 12) {
         element.innerHTML = '';
         for (let i = 0; i < text.length; i++) {
