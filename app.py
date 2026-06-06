@@ -4,18 +4,13 @@ import json
 import random
 import hashlib
 import sqlite3
-from flask import send_from_directory
-
-# Serve static files
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    return send_from_directory('static', filename)
-from flask import Flask, request, jsonify, render_template, session
+from datetime import datetime
+from flask import Flask, request, jsonify, render_template, session, send_from_directory
 from flask_cors import CORS
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'nexora_secret_key_2025')
+app.secret_key = os.environ.get('SECRET_KEY', 'nexora_secret_key_2025_talent_day')
 CORS(app)
 
 # ========== GROQ API ==========
@@ -26,62 +21,60 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 # ========== DATABASE SETUP ==========
 DB_NAME = "nexora_users.db"
 
-def init_user_db():
-    """Initialize user database with tables"""
+def init_db():
+    """Initialize all database tables"""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
     # Users table
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  username TEXT UNIQUE,
-                  password TEXT,
-                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     
-    # Conversations table (memory ya mazungumzo)
-    c.execute('''CREATE TABLE IF NOT EXISTS conversations
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_id INTEGER,
-                  role TEXT,
-                  message TEXT,
-                  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                  FOREIGN KEY (user_id) REFERENCES users(id))''')
+    # Conversations table
+    c.execute('''CREATE TABLE IF NOT EXISTS conversations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        message TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
     
     # Personality results table
-    c.execute('''CREATE TABLE IF NOT EXISTS personality
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_id INTEGER,
-                  animal TEXT,
-                  trait TEXT,
-                  date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                  FOREIGN KEY (user_id) REFERENCES users(id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS personality (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        animal TEXT NOT NULL,
+        trait TEXT NOT NULL,
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
     
     # Game stats table
-    c.execute('''CREATE TABLE IF NOT EXISTS game_stats
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_id INTEGER,
-                  wins INTEGER DEFAULT 0,
-                  total_attempts INTEGER DEFAULT 0,
-                  last_played TIMESTAMP,
-                  FOREIGN KEY (user_id) REFERENCES users(id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS game_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        wins INTEGER DEFAULT 0,
+        total_attempts INTEGER DEFAULT 0,
+        current_game_number INTEGER,
+        current_game_attempts INTEGER DEFAULT 0,
+        game_active INTEGER DEFAULT 0,
+        last_played TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
     
     conn.commit()
     conn.close()
 
-init_user_db()
+init_db()
 
 # ========== HELPER FUNCTIONS ==========
 def hash_password(password):
-    """Hash password using SHA256"""
     return hashlib.sha256(password.encode()).hexdigest()
-
-def get_user_id(username):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE username = ?", (username,))
-    result = c.fetchone()
-    conn.close()
-    return result[0] if result else None
 
 def create_user(username, password):
     conn = sqlite3.connect(DB_NAME)
@@ -121,7 +114,6 @@ def get_conversation_history(user_id, limit=20):
               (user_id, limit))
     results = c.fetchall()
     conn.close()
-    # Return in chronological order
     history = []
     for role, msg in reversed(results):
         history.append(f"{role}: {msg}")
@@ -130,6 +122,7 @@ def get_conversation_history(user_id, limit=20):
 def save_personality(user_id, animal, trait):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    c.execute("DELETE FROM personality WHERE user_id = ?", (user_id,))
     c.execute("INSERT INTO personality (user_id, animal, trait) VALUES (?, ?, ?)",
               (user_id, animal, trait))
     conn.commit()
@@ -144,39 +137,54 @@ def get_personality(user_id):
     conn.close()
     return result if result else None
 
-def update_game_stats(user_id, won, attempts):
+def get_game_state(user_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT wins, total_attempts FROM game_stats WHERE user_id = ?", (user_id,))
-    existing = c.fetchone()
-    
-    if existing:
-        wins = existing[0] + (1 if won else 0)
-        total_attempts = existing[1] + attempts
-        c.execute("UPDATE game_stats SET wins = ?, total_attempts = ?, last_played = CURRENT_TIMESTAMP WHERE user_id = ?",
-                  (wins, total_attempts, user_id))
-    else:
-        c.execute("INSERT INTO game_stats (user_id, wins, total_attempts, last_played) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
-                  (user_id, 1 if won else 0, attempts))
-    conn.commit()
-    conn.close()
-
-def get_game_stats(user_id):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT wins, total_attempts FROM game_stats WHERE user_id = ?", (user_id,))
+    c.execute("SELECT wins, total_attempts, current_game_number, current_game_attempts, game_active FROM game_stats WHERE user_id = ?",
+              (user_id,))
     result = c.fetchone()
     conn.close()
-    return result if result else (0, 0)
+    if result:
+        return {"wins": result[0], "total_attempts": result[1], 
+                "number": result[2], "attempts": result[3], "active": result[4]}
+    return {"wins": 0, "total_attempts": 0, "number": None, "attempts": 0, "active": False}
 
-# ========== LOGIN DECORATOR ==========
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({"error": "Unauthorized", "redirect": "/login"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
+def update_game_state(user_id, wins=None, total_attempts=None, number=None, attempts=None, active=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT id FROM game_stats WHERE user_id = ?", (user_id,))
+    exists = c.fetchone()
+    
+    if exists:
+        updates = []
+        values = []
+        if wins is not None:
+            updates.append("wins = ?")
+            values.append(wins)
+        if total_attempts is not None:
+            updates.append("total_attempts = ?")
+            values.append(total_attempts)
+        if number is not None:
+            updates.append("current_game_number = ?")
+            values.append(number)
+        if attempts is not None:
+            updates.append("current_game_attempts = ?")
+            values.append(attempts)
+        if active is not None:
+            updates.append("game_active = ?")
+            values.append(active)
+        updates.append("last_played = CURRENT_TIMESTAMP")
+        
+        if updates:
+            values.append(user_id)
+            c.execute(f"UPDATE game_stats SET {', '.join(updates)} WHERE user_id = ?", values)
+    else:
+        c.execute("""INSERT INTO game_stats (user_id, wins, total_attempts, current_game_number, current_game_attempts, game_active, last_played) 
+                     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                  (user_id, wins or 0, total_attempts or 0, number, attempts or 0, 1 if active else 0))
+    
+    conn.commit()
+    conn.close()
 
 # ========== FEATURE FUNCTIONS ==========
 def generate_image(prompt):
@@ -187,6 +195,22 @@ def generate_image(prompt):
     except:
         return None
 
+def personality_test_result(answers):
+    likes_night = answers.get('likes_night', False)
+    likes_flying = answers.get('likes_flying', False)
+    likes_people = answers.get('likes_people', False)
+    
+    if likes_night and likes_flying:
+        return {"animal": "Bundi 🦉", "trait": "Una hekima na utulivu. Wewe ni mwenye busara!"}
+    elif likes_night and not likes_flying:
+        return {"animal": "Paka 🐱", "trait": "Wewe ni mwenye ustaarabu, mpenda faragha, na unajitegemea!"}
+    elif not likes_night and likes_flying:
+        return {"animal": "Ndege 🦅", "trait": "Una roho ya uhuru, unapenda kusafiri na kuchunguza mambo mapya!"}
+    elif not likes_night and likes_people:
+        return {"animal": "Simba 🦁", "trait": "Una uongozi, ujasiri, na unapenda kuwa katikati ya watu!"}
+    else:
+        return {"animal": "Tembo 🐘", "trait": "Una hekima, uaminifu, na unakumbuka mambo mengi!"}
+
 def ask_groq(question, user_name, history):
     if not GROQ_API_KEY:
         return get_fallback_response(question, user_name)
@@ -194,7 +218,8 @@ def ask_groq(question, user_name, history):
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
         
-        system_prompt = f"""Wewe ni Nexora AI. Jina lako ni NEXORA AI. Ulitengenezwa na DENIS ALBERT, mwanafunzi wa ST. AMEDEUS.
+        system_prompt = f"""Wewe ni Nexora AI. Jina lako ni NEXORA AI. 
+Ulitengenezwa na DENIS ALBERT, mwanafunzi wa ST. AMEDEUS.
 Jina la mtumiaji ni {user_name}. Jibu kwa KISWAHILI tu. Tumia emoji kidogo.
 Mazungumzo yaliyopita: {history}"""
 
@@ -223,11 +248,24 @@ def get_fallback_response(question, user_name):
         return f"Habari yangu ni nzuri sana, {user_name}! 😊"
     return f"Samahani, {user_name}. Sijaelewa vizuri. Jaribu tena! 😊"
 
+# ========== SERVE STATIC FILES FOR PWA ==========
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('static', 'manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('static', 'sw.js')
+
 # ========== FLASK ROUTES ==========
 @app.route('/')
 def index():
     if 'user_id' in session:
-        return render_template('chat.html')
+        return render_template('chat.html', username=session['username'])
     return render_template('login.html')
 
 @app.route('/api/login', methods=['POST'])
@@ -245,7 +283,7 @@ def login():
         session['username'] = username
         return jsonify({"success": True, "username": username})
     else:
-        return jsonify({"success": False, "error": "Jina la mtumiaji au password si sahihi"})
+        return jsonify({"success": False, "error": "Jina au password si sahihi"})
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
@@ -273,8 +311,10 @@ def logout():
     return jsonify({"success": True})
 
 @app.route('/api/chat', methods=['POST'])
-@login_required
 def chat():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
     data = request.json
     msg = data.get('message', '')
     user_id = session['user_id']
@@ -288,7 +328,7 @@ def chat():
     # Get conversation history
     history = get_conversation_history(user_id, 10)
     
-    # Get response
+    # Get response from GROQ
     reply = ask_groq(msg, username, history)
     
     # Save AI response
@@ -297,17 +337,19 @@ def chat():
     return jsonify({"reply": reply})
 
 @app.route('/api/profile', methods=['GET'])
-@login_required
 def profile():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
     user_id = session['user_id']
     personality = get_personality(user_id)
-    wins, attempts = get_game_stats(user_id)
+    game = get_game_state(user_id)
     
     return jsonify({
         "username": session['username'],
         "personality": personality,
-        "wins": wins,
-        "total_attempts": attempts
+        "wins": game['wins'],
+        "total_attempts": game['total_attempts']
     })
 
 if __name__ == '__main__':
