@@ -4,12 +4,10 @@ import json
 import random
 import hashlib
 import sqlite3
-import io
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, session, send_from_directory, send_file
+from flask import Flask, request, jsonify, render_template, session, send_from_directory
 from flask_cors import CORS
 from functools import wraps
-from PIL import Image, ImageDraw, ImageFont
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'nexora_secret_key_2025_talent_day')
@@ -24,7 +22,6 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 DB_NAME = "nexora_users.db"
 
 def init_db():
-    """Initialize all database tables"""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
@@ -255,34 +252,16 @@ def serve_static(filename):
 def serve_manifest():
     return send_from_directory('static', 'manifest.json')
 
-# ========== GENERATE ICON "N" AUTOMATICALLY ==========
+# ========== GENERATE ICON "N" USING SVG (NO PIL NEEDED) ==========
 @app.route('/static/icon-512.png')
 def generate_icon():
-    """Generate 'N' icon dynamically - no need for image files"""
-    size = 512
-    img = Image.new('RGB', (size, size), color='#a855f7')
-    draw = ImageDraw.Draw(img)
+    """Generate 'N' icon using SVG - works everywhere, no dependencies"""
+    svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+        <rect width="512" height="512" fill="#a855f7" rx="100"/>
+        <text x="256" y="380" font-family="Arial, Helvetica, sans-serif" font-size="380" font-weight="bold" fill="white" text-anchor="middle">N</text>
+    </svg>'''
     
-    # Try different fonts for different OS
-    try:
-        font = ImageFont.truetype('/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf', 380)
-    except:
-        try:
-            font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 380)
-        except:
-            try:
-                font = ImageFont.truetype('arial.ttf', 380)
-            except:
-                font = ImageFont.load_default()
-    
-    # Draw letter "N"
-    draw.text((size//2, size//2), 'N', fill='white', anchor='mm', font=font)
-    
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='PNG')
-    img_byte_arr.seek(0)
-    
-    return send_file(img_byte_arr, mimetype='image/png')
+    return svg_content, 200, {'Content-Type': 'image/svg+xml'}
 
 # ========== FLASK ROUTES ==========
 @app.route('/')
