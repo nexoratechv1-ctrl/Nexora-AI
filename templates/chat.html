@@ -578,5 +578,14 @@
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     document.getElementById('resetBtn').addEventListener('click', resetConversation);
 </script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered:', reg))
+            .catch(err => console.log('SW error:', err));
+    });
+}
+</script>
 </body>
     </html>
