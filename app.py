@@ -9,7 +9,7 @@ CORS(app)
 
 # ========== GROQ API CONFIGURATION ==========
 # 🔥 WEKA GROQ API KEY YAKO HAPA 🔥
-GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
+GROQ_API_KEY = "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"
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"  # Inaweza pia: "llama-3.1-8b-instant" au "mixtral-8x7b-32768"
