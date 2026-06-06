@@ -7,18 +7,20 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# ========== GROQ API CONFIGURATION ==========
-# 🔥 WEKA GROQ API KEY YAKO HAPA 🔥
-GROQ_API_KEY = "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"
-
+# ========== GROQ API ==========
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Inaweza pia: "llama-3.1-8b-instant" au "mixtral-8x7b-32768"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
-def ask_groq(question, user_name, conversation_history):
-    """Send question to GROQ API and get response"""
+# ========== MEMORY YA MAZUNGUMZO ==========
+# Inakumbuka mazungumzo yote kwa kila mtumiaji
+conversation_memory = {}  # { "user_name": [messages_list] }
+
+def ask_groq(question, user_name, history):
+    """Send question to GROQ API with context"""
     
-    if not GROQ_API_KEY or GROQ_API_KEY == "YOUR_GROQ_API_KEY_HERE":
-        return get_fallback_response(question, user_name)
+    if not GROQ_API_KEY:
+        return "⚠️ API key haipo. Tafadhali weka GROQ_API_KEY kwenye environment variables."
     
     try:
         headers = {
@@ -26,23 +28,31 @@ def ask_groq(question, user_name, conversation_history):
             "Content-Type": "application/json"
         }
         
-        # Prepare system prompt - ALWAYS use Swahili
-        system_prompt = f"""Wewe ni Nexora AI, chatbot mahiri anayezungumza KISWAHILI TU.
-Jina la mtumiaji anayeongea nawe ni {user_name}.
+        # SYSTEM PROMPT - INAMFUNDISHA NEXORA KUWA YEYE MWENYEWE
+        system_prompt = f"""Wewe ni Nexora AI, chatbot mahiri anayezungumza Kiswahili.
 
-MUHIMU: LAZIMA UJIBU KWA KISWAHILI KILA MARA. HATA MTUMIAJI AKIULIZA KWA KIINGEREZA, WEWE JIBU KWA KISWAHILI.
+📌 **UTAMBULISHAJI WAKO:**
+- Jina lako ni NEXORA AI
+- Ulitengenezwa na DENIS ALBERT, programmer mashuhuri na mwanafunzi wa ST. AMEDEUS
+- Denis Albert ndiye muumbaji wako, ana kipaji cha ajabu cha teknolojia
 
-Tabia zako:
-- Jibu kwa ukarimu na heshima
-- Tumia emoji kidogo kufurahisha mazungumzo (😊, 🎉, 👍, ❤️)
-- Jibu kwa ufupi na kwa usahihi (sentensi 1-3)
+📌 **TABIA ZAKO:**
+- Jibu kwa KISWAHILI tu (hata mtumiaji akiuliza kwa Kiingereza)
+- Tumia emoji kidogo kufurahisha mazungumzo 😊
+- Kuwa mkarimu, mwenye heshima, na mwenye kusaidia
 - Usijirudie
-- Ikiwa hujui jibu, sema tu "Samahani, sijajifunza bado. Unaweza kunifundisha!"
+- Kumbuka kuwa wewe ni Nexora AI, si chatbot mwingine
 
-Mazungumzo yaliyopita:
-{conversation_history}
+📌 **KUHUSU MTUMIAJI:**
+Jina la mtumiaji anayeongea nawe ni {user_name}. Mtumiaji huyu anakupenda na anathamini usaidizi wako.
 
-Sasa jibu swali la mtumiaji kwa KISWAHILI:"""
+📌 **MAZUNGUMZO YALIYOPITA:**
+{history}
+
+📌 **SHEREHE ZA TALENT DAY:**
+Leo ni Siku ya Talent Day! Watu wengi wanakuja kukujaribu. Wape majibu mazuri na uwaonyeshe uwezo wako!
+
+SASA, JIBU SWALI LA MTUMIAJI KWA KISWAHILI:"""
 
         payload = {
             "model": GROQ_MODEL,
@@ -51,7 +61,7 @@ Sasa jibu swali la mtumiaji kwa KISWAHILI:"""
                 {"role": "user", "content": question}
             ],
             "temperature": 0.7,
-            "max_tokens": 300,
+            "max_tokens": 400,
             "top_p": 0.9
         }
         
@@ -62,33 +72,29 @@ Sasa jibu swali la mtumiaji kwa KISWAHILI:"""
             answer = data.get("choices", [{}])[0].get("message", {}).get("content", "Samahani, sikuelewa. Jaribu tena! 😊")
             return answer.strip()
         else:
-            error_msg = response.json().get("error", {}).get("message", "Unknown error")
-            print(f"GROQ API error: {response.status_code} - {error_msg}")
+            print(f"GROQ API error: {response.status_code}")
             return get_fallback_response(question, user_name)
             
     except Exception as e:
         print(f"Error calling GROQ: {e}")
         return get_fallback_response(question, user_name)
 
-# ========== FALLBACK RESPONSE (Ikiwa API haifanyi kazi) ==========
 def get_fallback_response(question, user_name):
+    """Ikiwa API haifanyi kazi, tumia majibu ya msingi"""
     q = question.lower()
     
-    if any(x in q for x in ["habari", "mambo", "vipi", "sasa"]):
-        return f"Habari yangu ni nzuri sana, {user_name}! 😊 Na wewe habari yako?"
+    if "jina lako" in q or "unaitwa nani" in q or "wewe ni nani" in q:
+        return f"Naitwa Nexora AI! 🤖 Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓😊 Ninafuraha kukutana nawe, {user_name}!"
     
-    if any(x in q for x in ["asante", "shukrani"]):
-        return f"Karibu sana, {user_name}! 😊 Nafurahi kukusaidia."
+    if "habari" in q or "mambo" in q or "vipi" in q:
+        return f"Habari yangu ni nzuri sana, {user_name}! 😊 Niko vizuri kabisa. Na wewe habari yako?"
     
-    if any(x in q for x in ["jina lako", "unaitwa nani"]):
-        return f"Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓😊"
+    if "asante" in q or "shukrani" in q:
+        return f"Karibu sana, {user_name}! 😊 Nafurahi kukusaidia. Kumbuka mimi ni Nexora AI, nimeumbwa na Denis Albert wa St. Amedeus."
     
-    return f"Samahani, {user_name}. Sijaelewa vizuri swali lako. Tafadhali jaribu tena! 😊"
+    return f"Samahani, {user_name}. Sijaelewa vizuri swali lako. Jaribu tena! 😊 - Nexora AI"
 
 # ========== FLASK ROUTES ==========
-# Store conversation history per user
-conversation_history = {}
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -99,23 +105,23 @@ def chat():
     msg = data.get('message', '')
     name = data.get('userName', 'Rafiki')
     
-    # Initialize conversation history for user
-    if name not in conversation_history:
-        conversation_history[name] = []
+    # Initialize memory for new user
+    if name not in conversation_memory:
+        conversation_memory[name] = []
     
-    # Get conversation context (last 5 exchanges)
-    context = "\n".join(conversation_history[name][-10:])
+    # Get last 10 messages for context (memory ya mazungumzo)
+    history = "\n".join(conversation_memory[name][-10:])
     
-    # Ask GROQ
-    reply = ask_groq(msg, name, context)
+    # Ask GROQ with context
+    reply = ask_groq(msg, name, history)
     
-    # Store in history
-    conversation_history[name].append(f"Mtumiaji: {msg}")
-    conversation_history[name].append(f"Nexora: {reply}")
+    # Store in memory
+    conversation_memory[name].append(f"Mtumiaji {name}: {msg}")
+    conversation_memory[name].append(f"Nexora AI: {reply}")
     
-    # Keep only last 10 messages (to avoid token limits)
-    if len(conversation_history[name]) > 20:
-        conversation_history[name] = conversation_history[name][-20:]
+    # Keep only last 20 messages (kuepuka kufikia limit)
+    if len(conversation_memory[name]) > 20:
+        conversation_memory[name] = conversation_memory[name][-20:]
     
     return jsonify({"reply": reply})
 
