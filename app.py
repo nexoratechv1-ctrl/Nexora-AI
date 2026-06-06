@@ -4,6 +4,12 @@ import json
 import random
 import hashlib
 import sqlite3
+from flask import send_from_directory
+
+# Serve static files
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from functools import wraps
