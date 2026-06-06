@@ -63,15 +63,12 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
     
-    # ========== JEDWALI LA ANALYTICS ==========
     c.execute('''CREATE TABLE IF NOT EXISTS analytics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         session_id TEXT NOT NULL,
         action TEXT NOT NULL,
         details TEXT,
-        ip_address TEXT,
-        user_agent TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
@@ -196,7 +193,6 @@ def update_game_state(user_id, wins=None, total_attempts=None, number=None, atte
 
 # ========== ANALYTICS FUNCTIONS ==========
 def track_user_action(user_id, session_id, action, details=None):
-    """Rekodi kitendo cha mtumiaji"""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("""INSERT INTO analytics (user_id, session_id, action, details) 
@@ -206,7 +202,6 @@ def track_user_action(user_id, session_id, action, details=None):
     conn.close()
 
 def get_user_stats():
-    """Pata takwimu za watumiaji"""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
@@ -321,7 +316,6 @@ def serve_static(filename):
 def serve_manifest():
     return send_from_directory('static', 'manifest.json')
 
-# ========== GENERATE ICON "N" USING SVG ==========
 @app.route('/static/icon-512.png')
 def generate_icon():
     svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
@@ -330,7 +324,7 @@ def generate_icon():
     </svg>'''
     return svg_content, 200, {'Content-Type': 'image/svg+xml'}
 
-# ========== DASHBOARD YA TAKWIMU ==========
+# ========== ADMIN DASHBOARD ==========
 @app.route('/admin/stats')
 def admin_stats():
     if 'user_id' not in session:
@@ -344,119 +338,42 @@ def admin_stats():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Nexora AI - Takwimu za Watumiaji</title>
+        <title>Nexora AI - Takwimu</title>
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{
-                font-family: -apple-system, 'Segoe UI', sans-serif;
-                background: #0f0f13;
-                color: #e4e4e7;
-                padding: 20px;
-            }}
+            body {{ font-family: -apple-system, 'Segoe UI', sans-serif; background: #0f0f13; color: #e4e4e7; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
             h1 {{ color: #c084fc; margin-bottom: 20px; }}
-            .stats-grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
-            }}
-            .stat-card {{
-                background: #1a1a24;
-                border-radius: 16px;
-                padding: 20px;
-                border: 1px solid #2a2a3a;
-                text-align: center;
-            }}
-            .stat-number {{
-                font-size: 2.5rem;
-                font-weight: bold;
-                color: #a855f7;
-            }}
-            .stat-label {{
-                color: #a1a1aa;
-                margin-top: 8px;
-            }}
-            .activity-table {{
-                width: 100%;
-                background: #1a1a24;
-                border-radius: 16px;
-                overflow: auto;
-                border: 1px solid #2a2a3a;
-            }}
-            .activity-table th, .activity-table td {{
-                padding: 12px;
-                text-align: left;
-                border-bottom: 1px solid #2a2a3a;
-            }}
-            .activity-table th {{
-                background: #2a2a3a;
-                color: #c084fc;
-            }}
-            .back-btn {{
-                background: #a855f7;
-                border: none;
-                border-radius: 8px;
-                padding: 10px 20px;
-                color: white;
-                cursor: pointer;
-                margin-bottom: 20px;
-            }}
-            .back-btn:hover {{ background: #7c3aed; }}
+            .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }}
+            .stat-card {{ background: #1a1a24; border-radius: 16px; padding: 20px; text-align: center; border: 1px solid #2a2a3a; }}
+            .stat-number {{ font-size: 2.5rem; font-weight: bold; color: #a855f7; }}
+            .stat-label {{ color: #a1a1aa; margin-top: 8px; }}
+            table {{ width: 100%; background: #1a1a24; border-radius: 16px; border-collapse: collapse; }}
+            th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #2a2a3a; }}
+            th {{ background: #2a2a3a; color: #c084fc; }}
+            .back-btn {{ background: #a855f7; border: none; border-radius: 8px; padding: 10px 20px; color: white; cursor: pointer; margin-bottom: 20px; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <button class="back-btn" onclick="window.location.href='/'">← Nyuma kwa Chat</button>
-            <h1>📊 Takwimu za Watumiaji - Nexora AI</h1>
-            
+            <button class="back-btn" onclick="window.location.href='/'">← Nyuma</button>
+            <h1>📊 Takwimu za Watumiaji</h1>
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number">{stats['total_users']}</div>
-                    <div class="stat-label">Jumla ya Watumiaji</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['new_users_week']}</div>
-                    <div class="stat-label">Wapya Wiki Hii</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['new_users_today']}</div>
-                    <div class="stat-label">Wapya Leo</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['active_sessions_today']}</div>
-                    <div class="stat-label">Vikao Hai Leo</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['total_conversations']}</div>
-                    <div class="stat-label">Jumla ya Mazungumzo</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['conversations_today']}</div>
-                    <div class="stat-label">Mazungumzo Leo</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['personality_count']}</div>
-                    <div class="stat-label">Waliopima Personality</div>
-                </div>
+                <div class="stat-card"><div class="stat-number">{stats['total_users']}</div><div class="stat-label">Jumla ya Watumiaji</div></div>
+                <div class="stat-card"><div class="stat-number">{stats['new_users_week']}</div><div class="stat-label">Wapya Wiki Hii</div></div>
+                <div class="stat-card"><div class="stat-number">{stats['new_users_today']}</div><div class="stat-label">Wapya Leo</div></div>
+                <div class="stat-card"><div class="stat-number">{stats['active_sessions_today']}</div><div class="stat-label">Vikao Hai Leo</div></div>
+                <div class="stat-card"><div class="stat-number">{stats['total_conversations']}</div><div class="stat-label">Jumla Mazungumzo</div></div>
+                <div class="stat-card"><div class="stat-number">{stats['conversations_today']}</div><div class="stat-label">Mazungumzo Leo</div></div>
+                <div class="stat-card"><div class="stat-number">{stats['personality_count']}</div><div class="stat-label">Personality Test</div></div>
             </div>
-            
-            <h2>📝 Shughuli za Hivi Karibuni</h2>
+            <h2>Shughuli za Hivi Karibuni</h2>
             <div style="overflow-x: auto;">
-                <table class="activity-table">
-                    <thead>
-                        <tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th><th>Maelezo</th></tr>
-                    </thead>
-                    <tbody>
-    """
-    
+                <table>
+                    <thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th><th>Maelezo</th></tr></thead>
+                    <tbody>"""
     for activity in stats['recent_activity']:
-        timestamp = activity[0]
-        username = activity[1] if activity[1] else "Anonymous"
-        action = activity[2]
-        details = activity[3][:50] if activity[3] else "-"
-        html += f"<tr><td>{timestamp}</td><td>{username}</td><td>{action}</td><td>{details}</td></tr>"
-    
+        html += f"<tr><td>{activity[0]}</td><td>{activity[1] or 'Anonymous'}</td><td>{activity[2]}</td><td>{str(activity[3])[:50] if activity[3] else '-'}</td></tr>"
     html += """
                     </tbody>
                 </table>
@@ -465,7 +382,6 @@ def admin_stats():
     </body>
     </html>
     """
-    
     return html
 
 # ========== FLASK ROUTES ==========
@@ -488,9 +404,8 @@ def login():
     if user_id:
         session['user_id'] = user_id
         session['username'] = username
-        # Tengeneza session_id kwa ajili ya tracking
         session['session_id'] = str(uuid.uuid4())
-        track_user_action(user_id, session['session_id'], 'login', f"Mtumiaji {username} aliingia")
+        track_user_action(user_id, session['session_id'], 'login', f"{username} aliingia")
         return jsonify({"success": True, "username": username})
     else:
         return jsonify({"success": False, "error": "Jina au password si sahihi"})
@@ -512,7 +427,7 @@ def signup():
         session['user_id'] = user_id
         session['username'] = username
         session['session_id'] = str(uuid.uuid4())
-        track_user_action(user_id, session['session_id'], 'signup', f"Mtumiaji {username} alijisajili")
+        track_user_action(user_id, session['session_id'], 'signup', f"{username} alijisajili")
         return jsonify({"success": True, "username": username})
     else:
         return jsonify({"success": False, "error": "Jina la mtumiaji tayari lipo"})
@@ -520,7 +435,7 @@ def signup():
 @app.route('/api/logout', methods=['POST'])
 def logout():
     if 'user_id' in session and 'session_id' in session:
-        track_user_action(session['user_id'], session['session_id'], 'logout', "Mtumiaji alitoka")
+        track_user_action(session['user_id'], session['session_id'], 'logout', "Alitoka")
     session.clear()
     return jsonify({"success": True})
 
@@ -536,19 +451,15 @@ def chat():
     
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-        
-    session_id = session['session_id']
-
-     # Rekodi ujumbe wa mtumiaji
-    track_user_action(user_id, session_id, 'send_message', f"Mtumiaji: {msg[:100]}")
     
+    session_id = session['session_id']
+    
+    track_user_action(user_id, session_id, 'send_message', msg[:100])
     save_conversation(user_id, "Mtumiaji", msg)
     history = get_conversation_history(user_id, 10)
     reply = ask_groq(msg, username, history)
     save_conversation(user_id, "Nexora", reply)
-    
-    # Rekodi jibu la AI
-    track_user_action(user_id, session_id, 'ai_response', f"Nexora: {reply[:100]}")
+    track_user_action(user_id, session_id, 'ai_response', reply[:100])
     
     return jsonify({"reply": reply})
 
@@ -571,7 +482,3 @@ def profile():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
-```
-        
-    
-    
