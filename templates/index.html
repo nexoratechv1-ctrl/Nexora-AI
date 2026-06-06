@@ -2,7 +2,7 @@
 <html lang="sw">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Nexora AI</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -52,6 +52,14 @@
             background-clip: text;
             color: transparent;
         }
+        .voice-badge {
+            background: rgba(168,85,247,0.2);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            color: #c084fc;
+            margin-left: 12px;
+        }
         .chat-area {
             flex: 1;
             overflow-y: auto;
@@ -61,6 +69,10 @@
             gap: 24px;
             scroll-behavior: smooth;
         }
+        .chat-area::-webkit-scrollbar { width: 4px; }
+        .chat-area::-webkit-scrollbar-track { background: transparent; }
+        .chat-area::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 10px; }
+        
         .message-ai {
             display: flex;
             justify-content: flex-start;
@@ -159,50 +171,80 @@
             border-top: 1px solid rgba(255,255,255,0.08);
             display: flex;
             gap: 12px;
-            align-items: center;
+            align-items: flex-end;
             flex-shrink: 0;
         }
-        .input-area input {
+        .input-area textarea {
             flex: 1;
             background: #1a1a24;
             border: 1px solid #2a2a3a;
-            border-radius: 32px;
+            border-radius: 20px;
             padding: 14px 18px;
             color: white;
             font-size: 0.95rem;
             outline: none;
+            resize: none;
+            font-family: inherit;
+            line-height: 1.4;
         }
-        .input-area input:focus {
+        .input-area textarea:focus {
             border-color: #a855f7;
+            background: #1f1f2a;
+        }
+        .input-area textarea::placeholder {
+            color: #5a5a6e;
         }
         .send-btn {
             background: linear-gradient(135deg, #a855f7, #7c3aed);
             border: none;
             border-radius: 32px;
-            padding: 14px 28px;
+            padding: 14px 24px;
             color: white;
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 0.9rem;
             cursor: pointer;
-            min-width: 90px;
+            height: 52px;
+        }
+        .voice-btn {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 32px;
+            padding: 14px 20px;
+            color: #4ade80;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            height: 52px;
+        }
+        .voice-btn.listening {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: #ef4444;
+            color: #f87171;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
         .reset-btn {
             background: rgba(239,68,68,0.15);
             border: 1px solid rgba(239,68,68,0.4);
             border-radius: 32px;
-            padding: 14px 24px;
+            padding: 14px 20px;
             color: #f87171;
             font-weight: 600;
             font-size: 0.9rem;
             cursor: pointer;
+            height: 52px;
         }
         @media (max-width: 600px) {
             .chat-area { padding: 16px; gap: 20px; }
             .ai-text { font-size: 0.9rem; margin-left: 36px; }
             .user-bubble { padding: 10px 14px; max-width: 90%; }
-            .input-area { padding: 12px 16px 20px; gap: 10px; }
-            .send-btn { padding: 12px 22px; font-size: 0.9rem; min-width: 80px; }
-            .reset-btn { padding: 12px 18px; font-size: 0.85rem; }
+            .input-area { padding: 12px 16px 20px; gap: 8px; }
+            .send-btn, .voice-btn, .reset-btn { padding: 10px 16px; font-size: 0.8rem; height: 48px; }
+            .input-area textarea { padding: 12px 14px; font-size: 0.85rem; }
+            .voice-btn span { display: none; }
         }
     </style>
 </head>
@@ -212,6 +254,7 @@
         <div class="logo">
             <div class="logo-icon">✦</div>
             <div class="logo-text">Nexora AI</div>
+            <div class="voice-badge">🎤 Voice + Multi-Line</div>
         </div>
     </div>
     <div class="chat-area" id="chatArea">
@@ -220,15 +263,16 @@
                 <div class="ai-header">
                     <div class="ai-avatar">✨</div>
                     <span class="ai-name">Nexora AI</span>
-                    <button class="speak-btn" onclick="speakText(this, 'Habari! Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na programmer mashuhuri Denis Albert, mwanafunzi wa St. Amedeus!')">🔊 Soma</button>
+                    <button class="speak-btn" onclick="speakText(this, 'Habari! Tafadhali niambie jina lako. Unaweza kuandika kwenye sanduku kubwa na kupata Enter kwa mistari mingi!')">🔊 Soma</button>
                 </div>
-                <div class="ai-text">Habari! Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na programmer mashuhuri Denis Albert, mwanafunzi wa St. Amedeus! 😊🚀</div>
+                <div class="ai-text">Habari! Tafadhali niambie jina lako. 🎤 Unaweza kuandika kwenye sanduku kubwa na kupata Enter kwa mistari mingi! 😊🚀</div>
             </div>
         </div>
     </div>
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="Andika ujumbe wako..." autocomplete="off">
+        <textarea id="userInput" placeholder="Andika ujumbe wako...&#10;💡 Kidokezo: Unaweza kuweka mafundisho mengi kwa kuandika kila moja kwenye mstari wake!" rows="3"></textarea>
         <button class="send-btn" id="sendBtn">📤 Tuma</button>
+        <button class="voice-btn" id="voiceBtn" title="Bonyeza kuongea">🎤 <span>Sauti</span></button>
         <button class="reset-btn" id="resetBtn">🔄 Mpya</button>
     </div>
 </div>
@@ -236,6 +280,72 @@
 <script>
     let currentUserName = null;
     let isTyping = false;
+    let isListening = false;
+    let recognition = null;
+
+    // Auto-resize textarea
+    const textarea = document.getElementById('userInput');
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+    });
+
+    // Speech Recognition
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'sw-TZ';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onresult = function(event) {
+            const speechText = event.results[0][0].transcript;
+            textarea.value = speechText;
+            document.getElementById('voiceBtn').classList.remove('listening');
+            isListening = false;
+            document.getElementById('voiceBtn').innerHTML = '🎤 <span>Sauti</span>';
+            // Auto send after voice
+            sendMessage();
+        };
+
+        recognition.onerror = function() {
+            document.getElementById('voiceBtn').classList.remove('listening');
+            isListening = false;
+            document.getElementById('voiceBtn').innerHTML = '🎤 <span>Sauti</span>';
+        };
+    }
+
+    function startListening() {
+        if (!recognition) {
+            addAIMessage("Samahani, kifaa chako hakina uwezo wa kutambua sauti. 😊");
+            return;
+        }
+        if (isListening) {
+            recognition.stop();
+            document.getElementById('voiceBtn').classList.remove('listening');
+            isListening = false;
+            document.getElementById('voiceBtn').innerHTML = '🎤 <span>Sauti</span>';
+        } else {
+            recognition.start();
+            isListening = true;
+            document.getElementById('voiceBtn').classList.add('listening');
+            document.getElementById('voiceBtn').innerHTML = '🎤 <span>Inasikiliza...</span>';
+        }
+    }
+
+    document.getElementById('voiceBtn').addEventListener('click', startListening);
+
+    function speakText(button, text) {
+        if (!window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'sw';
+        utterance.rate = 0.9;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        const original = button.innerHTML;
+        button.innerHTML = '🔊 Inasoma...';
+        setTimeout(() => { button.innerHTML = original; }, 2000);
+    }
 
     async function typeText(element, text, speed = 12) {
         element.innerHTML = '';
@@ -245,25 +355,10 @@
         }
     }
 
-    function speakText(button, text) {
-        if (!window.speechSynthesis) return;
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'sw';
-        utterance.rate = 0.9;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-        
-        const original = button.innerHTML;
-        button.innerHTML = '🔊 Inasoma...';
-        setTimeout(() => { button.innerHTML = original; }, 2000);
-    }
-
     async function addAIMessage(text) {
         const chatArea = document.getElementById('chatArea');
-        const messageId = 'msg_' + Date.now();
         const div = document.createElement('div');
         div.className = 'message-ai';
-        div.id = messageId;
         div.innerHTML = `
             <div class="ai-bubble">
                 <div class="ai-header">
@@ -324,11 +419,25 @@
         if (typing) typing.remove();
     }
 
+    async function fetchReply(message, userName) {
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message, userName: userName })
+            });
+            const data = await response.json();
+            return data.reply;
+        } catch (error) {
+            return "Samahani, kuna tatizo. Hakikisha server inaendesha. 😊";
+        }
+    }
+
     async function sendMessage() {
-        const input = document.getElementById('userInput');
-        let msg = input.value.trim();
+        let msg = textarea.value.trim();
         if (!msg || isTyping) return;
-        input.value = '';
+        textarea.value = '';
+        textarea.style.height = 'auto';
 
         if (!currentUserName) {
             currentUserName = msg;
@@ -347,20 +456,6 @@
         await addAIMessage(reply);
     }
 
-    async function fetchReply(message, userName) {
-        try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message, userName: userName })
-            });
-            const data = await response.json();
-            return data.reply;
-        } catch (error) {
-            return "Samahani, kuna tatizo la muunganisho. Hakikisha server inaendesha kwenye port 5000. 😊";
-        }
-    }
-
     function resetConversation() {
         currentUserName = null;
         const chatArea = document.getElementById('chatArea');
@@ -372,9 +467,9 @@
                 <div class="ai-header">
                     <div class="ai-avatar">✨</div>
                     <span class="ai-name">Nexora AI</span>
-                    <button class="speak-btn" onclick="speakText(this, 'Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na Denis Albert, mwanafunzi wa St. Amedeus!')">🔊 Soma</button>
+                    <button class="speak-btn" onclick="speakText(this, 'Tafadhali niambie jina lako kuanza.')">🔊 Soma</button>
                 </div>
-                <div class="ai-text">Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na programmer mashuhuri Denis Albert, mwanafunzi wa St. Amedeus! 😊🚀</div>
+                <div class="ai-text">Tafadhali niambie jina lako kuanza. 😊🚀</div>
             </div>
         `;
         chatArea.appendChild(welcomeDiv);
@@ -382,9 +477,13 @@
 
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     document.getElementById('resetBtn').addEventListener('click', resetConversation);
-    document.getElementById('userInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
+    
+    // Ctrl+Enter to send
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) {
+            sendMessage();
+        }
     });
 </script>
 </body>
-  </html>
+        </html>
