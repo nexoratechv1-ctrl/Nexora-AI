@@ -537,9 +537,39 @@ def chat():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     
-    session_id = session['session_id']
-    
-    # Rekodi ujumbe wa mtumiaji
+     # Rekodi ujumbe wa mtumiaji
     track_user_action(user_id, session_id, 'send_message', f"Mtumiaji: {msg[:100]}")
+    
+    save_conversation(user_id, "Mtumiaji", msg)
+    history = get_conversation_history(user_id, 10)
+    reply = ask_groq(msg, username, history)
+    save_conversation(user_id, "Nexora", reply)
+    
+    # Rekodi jibu la AI
+    track_user_action(user_id, session_id, 'ai_response', f"Nexora: {reply[:100]}")
+    
+    return jsonify({"reply": reply})
+
+@app.route('/api/profile', methods=['GET'])
+def profile():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    user_id = session['user_id']
+    personality = get_personality(user_id)
+    game = get_game_state(user_id)
+    
+    return jsonify({
+        "username": session['username'],
+        "personality": personality,
+        "wins": game['wins'],
+        "total_attempts": game['total_attempts']
+    })
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
+```
+        
     
     
