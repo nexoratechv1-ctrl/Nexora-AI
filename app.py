@@ -536,7 +536,8 @@ def chat():
     
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-    
+        session_id = session['session_id']
+
      # Rekodi ujumbe wa mtumiaji
     track_user_action(user_id, session_id, 'send_message', f"Mtumiaji: {msg[:100]}")
     
