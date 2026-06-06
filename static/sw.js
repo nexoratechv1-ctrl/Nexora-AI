@@ -1,16 +1,17 @@
 const CACHE_NAME = 'nexora-v1';
 const urlsToCache = [
   '/',
-  '/static/manifest.json',
+  '/manifest.json',
   '/static/icon-192.png',
   '/static/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
+  console.log('Service Worker installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('Cache opened');
         return cache.addAll(urlsToCache);
       })
   );
@@ -29,6 +30,7 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('activate', event => {
+  console.log('Service Worker activating...');
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then(cacheNames => {
