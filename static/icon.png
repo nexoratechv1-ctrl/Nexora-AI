@@ -1,0 +1,9 @@
+# Ikiwa una Python na PIL, endesha hii code moja kwa moja
+python -c "
+from PIL import Image, ImageDraw
+for size in [192, 512]:
+    img = Image.new('RGB', (size, size), color='#a855f7')
+    draw = ImageDraw.Draw(img)
+    draw.text((size//2, size//2), '✦', fill='white', anchor='mm')
+    img.save(f'static/icon-{size}.png')
+"
