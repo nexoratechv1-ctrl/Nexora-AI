@@ -14,14 +14,13 @@
             justify-content: center;
             align-items: center;
         }
-        .login-container {
-            background: rgba(20, 20, 35, 0.9);
+        .container {
+            background: rgba(20, 20, 35, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 32px;
             padding: 40px;
             width: 100%;
             max-width: 400px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
             border: 1px solid rgba(168,85,247,0.2);
         }
         .logo {
@@ -51,7 +50,6 @@
             text-align: center;
             color: #a1a1aa;
             margin-bottom: 30px;
-            font-size: 0.9rem;
         }
         .input-group {
             margin-bottom: 20px;
@@ -102,20 +100,18 @@
             cursor: pointer;
             text-decoration: none;
         }
-        .hidden {
-            display: none;
-        }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-<div class="login-container">
+<div class="container">
     <div class="logo">
         <div class="logo-icon">✦</div>
         <div class="logo-text">Nexora AI</div>
     </div>
-    <div class="subtitle">Ingia kwenye akaunti yako</div>
     
     <div id="loginForm">
+        <div class="subtitle">Ingia kwenye akaunti yako</div>
         <div class="input-group">
             <input type="text" id="loginUsername" placeholder="Jina la mtumiaji">
         </div>
@@ -128,11 +124,12 @@
     </div>
     
     <div id="signupForm" class="hidden">
+        <div class="subtitle">Jisajili kwa bure</div>
         <div class="input-group">
             <input type="text" id="signupUsername" placeholder="Jina la mtumiaji">
         </div>
         <div class="input-group">
-            <input type="password" id="signupPassword" placeholder="Password (herufi 4+ )">
+            <input type="password" id="signupPassword" placeholder="Password (herufi 4+)">
         </div>
         <button class="btn" onclick="signup()">Jisajili</button>
         <button class="btn btn-secondary" onclick="showLogin()">Nyuma</button>
@@ -145,49 +142,37 @@
         const username = document.getElementById('loginUsername').value.trim();
         const password = document.getElementById('loginPassword').value.trim();
         
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+        const res = await fetch('/api/login', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
         });
-        const data = await response.json();
-        
-        if (data.success) {
-            window.location.href = '/';
-        } else {
-            document.getElementById('loginError').innerText = data.error;
-        }
+        const data = await res.json();
+        if (data.success) window.location.href = '/';
+        else document.getElementById('loginError').innerText = data.error;
     }
     
     async function signup() {
         const username = document.getElementById('signupUsername').value.trim();
         const password = document.getElementById('signupPassword').value.trim();
         
-        const response = await fetch('/api/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+        const res = await fetch('/api/signup', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
         });
-        const data = await response.json();
-        
-        if (data.success) {
-            window.location.href = '/';
-        } else {
-            document.getElementById('signupError').innerText = data.error;
-        }
+        const data = await res.json();
+        if (data.success) window.location.href = '/';
+        else document.getElementById('signupError').innerText = data.error;
     }
     
     function showSignup() {
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('signupForm').classList.remove('hidden');
     }
-    
     function showLogin() {
         document.getElementById('signupForm').classList.add('hidden');
         document.getElementById('loginForm').classList.remove('hidden');
     }
     
-    // Enter key submit
     document.getElementById('loginPassword').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') login();
     });
@@ -196,4 +181,4 @@
     });
 </script>
 </body>
-  </html>
+</html>
