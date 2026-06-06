@@ -26,7 +26,6 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -34,7 +33,6 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # Conversations table
     c.execute('''CREATE TABLE IF NOT EXISTS conversations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -44,7 +42,6 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
     
-    # Personality results table
     c.execute('''CREATE TABLE IF NOT EXISTS personality (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -54,7 +51,6 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
     
-    # Game stats table
     c.execute('''CREATE TABLE IF NOT EXISTS game_stats (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -320,18 +316,9 @@ def chat():
     user_id = session['user_id']
     username = session['username']
     
-    q = msg.lower().strip()
-    
-    # Save user message
     save_conversation(user_id, "Mtumiaji", msg)
-    
-    # Get conversation history
     history = get_conversation_history(user_id, 10)
-    
-    # Get response from GROQ
     reply = ask_groq(msg, username, history)
-    
-    # Save AI response
     save_conversation(user_id, "Nexora", reply)
     
     return jsonify({"reply": reply})
