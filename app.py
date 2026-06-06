@@ -1,195 +1,93 @@
 import os
-import re
-import sqlite3
+import requests
+import json
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from difflib import get_close_matches
 
 app = Flask(__name__)
 CORS(app)
 
-# ========== DATABASE SETUP ==========
-DB_NAME = "nexora.db"
+# ========== GROQ API CONFIGURATION ==========
+# 🔥 WEKA GROQ API KEY YAKO HAPA 🔥
+GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
 
-# Cache for teachings
-teachings_cache = {}
-# Cache ya maneno yote kwa ajili ya spelling correction
-all_keywords = []
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"  # Inaweza pia: "llama-3.1-8b-instant" au "mixtral-8x7b-32768"
 
-def load_cache():
-    global teachings_cache, all_keywords
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT question, answer FROM teachings")
-    rows = c.fetchall()
-    teachings_cache = {q: a for q, a in rows}
-    all_keywords = list(teachings_cache.keys())
-    conn.close()
-    print(f"✅ Loaded {len(teachings_cache)} teachings into cache")
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS teachings
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  question TEXT UNIQUE,
-                  answer TEXT)''')
+def ask_groq(question, user_name, conversation_history):
+    """Send question to GROQ API and get response"""
     
-    c.execute("SELECT COUNT(*) FROM teachings")
-    if c.fetchone()[0] == 0:
-        defaults = [
-            ("jina lako", "Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓🚀"),
-            ("unaitwa nani", "Mimi ni Nexora AI! Nimetengenezwa na Denis Albert, mwanafunzi wa St. Amedeus. 😊"),
-            ("rangi yako", "Rangi yangu ni zambarau na bluu! 💜💙"),
-            ("sayansi", "Sayansi ni njia ya kuelewa ulimwengu wetu kwa kutumia uchunguzi, majaribio, na mantiki. Inajumuisha fizikia, kemia, biolojia, na matawi mengine. 🔬✨"),
-            ("fizikia", "Fizikia ni tawi la sayansi linalochunguza nguvu, mwendo, nishati, na sheria zinazotawala ulimwengu. Inasaidia kuelezea jinsi vitu vinavyofanya kazi! ⚡🔭"),
-            ("kemia", "Kemia ni tawi la sayansi linalochunguza vitu, muundo wake, na mabadiliko yanayotokea. Inahusika na molekuli, atomi, na athari za kemikali! 🧪⚗️"),
-            ("biolojia", "Biolojia ni tawi la sayansi linalochunguza viumbe hai, mimea, wanyama, na wanadamu. Inaelezea jinsi viumbe wanavyoishi, kukua, na kuzaliana! 🌱🐘"),
-        ]
-        for q, a in defaults:
-            c.execute("INSERT OR IGNORE INTO teachings (question, answer) VALUES (?, ?)", (q, a))
+    if not GROQ_API_KEY or GROQ_API_KEY == "YOUR_GROQ_API_KEY_HERE":
+        return get_fallback_response(question, user_name)
     
-    conn.commit()
-    conn.close()
-    load_cache()
-
-def save_teaching(question, answer):
-    global teachings_cache, all_keywords
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO teachings (question, answer) VALUES (?, ?)", 
-              (question.lower().strip(), answer.strip()))
-    conn.commit()
-    conn.close()
-    teachings_cache[question.lower().strip()] = answer.strip()
-    all_keywords = list(teachings_cache.keys())
-
-# ========== SMART SPELLING CORRECTION & KEYWORD DETECTION ==========
-def correct_spelling(word):
-    """Correct spelling of a single word based on known keywords"""
-    if word in all_keywords:
-        return word
-    
-    # Find closest match (80% similarity threshold)
-    matches = get_close_matches(word, all_keywords, n=1, cutoff=0.7)
-    if matches:
-        return matches[0]
-    return word
-
-def get_smart_answer(question):
-    """
-    Super smart answer detection:
-    - Corrects spelling errors
-    - Detects any keyword from teachings
-    - Understands different phrasing
-    """
-    q_lower = question.lower().strip()
-    
-    # FIRST: Exact match
-    if q_lower in teachings_cache:
-        return teachings_cache[q_lower]
-    
-    # SECOND: Break question into words and correct spelling of each word
-    words = re.findall(r'\b\w+\b', q_lower)
-    
-    # Correct spelling of each word
-    corrected_words = [correct_spelling(word) for word in words]
-    
-    # Check if any corrected word matches a teaching keyword
-    for word in corrected_words:
-        if word in teachings_cache:
-            return teachings_cache[word]
-    
-    # THIRD: Check if question contains any teaching key (as phrase)
-    # Sort by length (longest first) for best match
-    sorted_keys = sorted(teachings_cache.keys(), key=len, reverse=True)
-    
-    for key in sorted_keys:
-        # Direct containment
-        if key in q_lower:
-            return teachings_cache[key]
-        
-        # Check with spelling correction on the key
-        corrected_key = correct_spelling(key)
-        if corrected_key != key and corrected_key in q_lower:
-            return teachings_cache[key]
-    
-    # FOURTH: Check if any teaching key is similar to any word in question
-    for key in sorted_keys:
-        # Split key into words
-        key_words = key.split()
-        for kw in key_words:
-            # Check if key word is similar to any word in question
-            for q_word in words:
-                if get_close_matches(q_word, [kw], n=1, cutoff=0.7):
-                    return teachings_cache[key]
-    
-    return None
-
-# ========== PROCESS MULTIPLE TEACHINGS ==========
-def process_multiple_teachings(message):
-    teachings = []
-    lines = message.strip().split('\n')
-    
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        
-        lower_line = line.lower()
-        
-        if "unapoulizwa" in lower_line and "jibu" in lower_line:
-            parts = lower_line.split("jibu")
-            if len(parts) >= 2:
-                trigger = parts[0].replace("unapoulizwa", "").strip()
-                answer = parts[1].strip()
-                if trigger and answer:
-                    teachings.append((trigger, answer))
-        
-        elif "=" in line and not lower_line.startswith("unapoulizwa"):
-            parts = line.split("=")
-            if len(parts) == 2:
-                trigger = parts[0].strip()
-                answer = parts[1].strip()
-                if trigger and answer:
-                    teachings.append((trigger, answer))
-    
-    return teachings
-
-# ========== MATH ==========
-def calculate_math(question):
     try:
-        expr = question.lower().replace("ni nini", "").replace("je", "").replace("?", "")
-        expr = expr.replace("×", "*").replace("÷", "/").replace("x", "*")
-        # Check for math pattern
-        if re.search(r'\d+[\+\-\*\/]\d+', expr):
-            result = eval(expr)
-            return f"📊 {result}"
-    except:
-        pass
-    return None
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        # Prepare system prompt - ALWAYS use Swahili
+        system_prompt = f"""Wewe ni Nexora AI, chatbot mahiri anayezungumza KISWAHILI TU.
+Jina la mtumiaji anayeongea nawe ni {user_name}.
 
-# ========== CONVERSATION RESPONSES ==========
-def get_conversation_response(question, name):
+MUHIMU: LAZIMA UJIBU KWA KISWAHILI KILA MARA. HATA MTUMIAJI AKIULIZA KWA KIINGEREZA, WEWE JIBU KWA KISWAHILI.
+
+Tabia zako:
+- Jibu kwa ukarimu na heshima
+- Tumia emoji kidogo kufurahisha mazungumzo (😊, 🎉, 👍, ❤️)
+- Jibu kwa ufupi na kwa usahihi (sentensi 1-3)
+- Usijirudie
+- Ikiwa hujui jibu, sema tu "Samahani, sijajifunza bado. Unaweza kunifundisha!"
+
+Mazungumzo yaliyopita:
+{conversation_history}
+
+Sasa jibu swali la mtumiaji kwa KISWAHILI:"""
+
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 300,
+            "top_p": 0.9
+        }
+        
+        response = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            answer = data.get("choices", [{}])[0].get("message", {}).get("content", "Samahani, sikuelewa. Jaribu tena! 😊")
+            return answer.strip()
+        else:
+            error_msg = response.json().get("error", {}).get("message", "Unknown error")
+            print(f"GROQ API error: {response.status_code} - {error_msg}")
+            return get_fallback_response(question, user_name)
+            
+    except Exception as e:
+        print(f"Error calling GROQ: {e}")
+        return get_fallback_response(question, user_name)
+
+# ========== FALLBACK RESPONSE (Ikiwa API haifanyi kazi) ==========
+def get_fallback_response(question, user_name):
     q = question.lower()
     
-    # Greetings
-    if any(x in q for x in ["habari", "mambo", "vipi", "how are", "hello", "hi", "sasa"]):
-        return f"Habari yangu ni nzuri sana, {name}! 😊 Niko vizuri kabisa. Na wewe habari yako?"
+    if any(x in q for x in ["habari", "mambo", "vipi", "sasa"]):
+        return f"Habari yangu ni nzuri sana, {user_name}! 😊 Na wewe habari yako?"
     
-    # Thanks
-    if any(x in q for x in ["asante", "shukrani", "thank"]):
-        return f"Karibu sana, {name}! 😊 Nafurahi kukusaidia."
+    if any(x in q for x in ["asante", "shukrani"]):
+        return f"Karibu sana, {user_name}! 😊 Nafurahi kukusaidia."
     
-    # Self introduction
-    if any(x in q for x in ["jina lako", "unaitwa nani", "wewe ni nani", "who are you"]):
+    if any(x in q for x in ["jina lako", "unaitwa nani"]):
         return f"Naitwa Nexora AI! Nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 🎓😊"
     
-    # Default
-    return f"Samahani, {name}. Sijajifunza jibu la swali hili bado. Unaweza kunifundisha kwa kusema 'Unapoulizwa [swali] jibu [jibu]' 😊"
+    return f"Samahani, {user_name}. Sijaelewa vizuri swali lako. Tafadhali jaribu tena! 😊"
 
 # ========== FLASK ROUTES ==========
-init_db()
+# Store conversation history per user
+conversation_history = {}
 
 @app.route('/')
 def index():
@@ -201,34 +99,25 @@ def chat():
     msg = data.get('message', '')
     name = data.get('userName', 'Rafiki')
     
-    # STEP 1: Process teachings (when user is teaching)
-    teachings = process_multiple_teachings(msg)
+    # Initialize conversation history for user
+    if name not in conversation_history:
+        conversation_history[name] = []
     
-    if teachings:
-        saved_count = 0
-        for question, answer in teachings:
-            save_teaching(question, answer)
-            saved_count += 1
-        
-        if saved_count == 1:
-            reply = f"✅ Nimekumbuka!\n\n'{teachings[0][0]}' → imehifadhiwa"
-        else:
-            reply = f"✅ Nimekumbuka {saved_count} mafundisho!"
-        return jsonify({"reply": reply})
+    # Get conversation context (last 5 exchanges)
+    context = "\n".join(conversation_history[name][-10:])
     
-    # STEP 2: Smart answer with spelling correction
-    smart_answer = get_smart_answer(msg)
-    if smart_answer:
-        return jsonify({"reply": smart_answer})
+    # Ask GROQ
+    reply = ask_groq(msg, name, context)
     
-    # STEP 3: Check math
-    math_result = calculate_math(msg)
-    if math_result:
-        return jsonify({"reply": math_result})
+    # Store in history
+    conversation_history[name].append(f"Mtumiaji: {msg}")
+    conversation_history[name].append(f"Nexora: {reply}")
     
-    # STEP 4: Conversation response
-    response = get_conversation_response(msg, name)
-    return jsonify({"reply": response})
+    # Keep only last 10 messages (to avoid token limits)
+    if len(conversation_history[name]) > 20:
+        conversation_history[name] = conversation_history[name][-20:]
+    
+    return jsonify({"reply": reply})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
