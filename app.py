@@ -4,10 +4,12 @@ import json
 import random
 import hashlib
 import sqlite3
+import io
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, session, send_from_directory
+from flask import Flask, request, jsonify, render_template, session, send_from_directory, send_file
 from flask_cors import CORS
 from functools import wraps
+from PIL import Image, ImageDraw, ImageFont
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'nexora_secret_key_2025_talent_day')
@@ -244,7 +246,7 @@ def get_fallback_response(question, user_name):
         return f"Habari yangu ni nzuri sana, {user_name}! 😊"
     return f"Samahani, {user_name}. Sijaelewa vizuri. Jaribu tena! 😊"
 
-# ========== SERVE STATIC FILES FOR PWA ==========
+# ========== SERVE STATIC FILES ==========
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
@@ -253,9 +255,34 @@ def serve_static(filename):
 def serve_manifest():
     return send_from_directory('static', 'manifest.json')
 
-@app.route('/sw.js')
-def serve_sw():
-    return send_from_directory('static', 'sw.js')
+# ========== GENERATE ICON "N" AUTOMATICALLY ==========
+@app.route('/static/icon-512.png')
+def generate_icon():
+    """Generate 'N' icon dynamically - no need for image files"""
+    size = 512
+    img = Image.new('RGB', (size, size), color='#a855f7')
+    draw = ImageDraw.Draw(img)
+    
+    # Try different fonts for different OS
+    try:
+        font = ImageFont.truetype('/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf', 380)
+    except:
+        try:
+            font = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 380)
+        except:
+            try:
+                font = ImageFont.truetype('arial.ttf', 380)
+            except:
+                font = ImageFont.load_default()
+    
+    # Draw letter "N"
+    draw.text((size//2, size//2), 'N', fill='white', anchor='mm', font=font)
+    
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+    
+    return send_file(img_byte_arr, mimetype='image/png')
 
 # ========== FLASK ROUTES ==========
 @app.route('/')
