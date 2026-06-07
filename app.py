@@ -12,7 +12,12 @@ from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'nexora_secret_key_2025_talent_day')
-CORS(app)
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 60 * 60
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+CORS(app, supports_credentials=True)
 
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -34,16 +39,14 @@ def init_db():
         user_id INTEGER NOT NULL,
         role TEXT NOT NULL,
         message TEXT NOT NULL,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS personality (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         animal TEXT NOT NULL,
         trait TEXT NOT NULL,
-        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS game_stats (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,8 +56,7 @@ def init_db():
         current_game_number INTEGER,
         current_game_attempts INTEGER DEFAULT 0,
         game_active INTEGER DEFAULT 0,
-        last_played TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        last_played TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS analytics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,180 +71,180 @@ def init_db():
 
 init_db()
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def hash_password(p):
+    return hashlib.sha256(p.encode()).hexdigest()
 
-def create_user(username, password):
+def create_user(u, p):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hash_password(password)))
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (u, hash_password(p)))
         conn.commit()
-        user_id = c.lastrowid
+        uid = c.lastrowid
         conn.close()
-        return user_id
+        return uid
     except:
         conn.close()
         return None
 
-def authenticate_user(username, password):
+def authenticate_user(u, p):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE username = ? AND password = ?", (username, hash_password(password)))
-    result = c.fetchone()
+    c.execute("SELECT id FROM users WHERE username = ? AND password = ?", (u, hash_password(p)))
+    r = c.fetchone()
     conn.close()
-    return result[0] if result else None
+    return r[0] if r else None
 
-def save_conversation(user_id, role, message):
+def save_conversation(uid, role, msg):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO conversations (user_id, role, message) VALUES (?, ?, ?)", (user_id, role, message))
+    c.execute("INSERT INTO conversations (user_id, role, message) VALUES (?, ?, ?)", (uid, role, msg))
     conn.commit()
     conn.close()
 
-def get_conversation_history(user_id, limit=20):
+def get_conversation_history(uid, limit=20):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT role, message FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (user_id, limit))
-    results = c.fetchall()
+    c.execute("SELECT role, message FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (uid, limit))
+    rows = c.fetchall()
     conn.close()
-    history = []
-    for role, msg in reversed(results):
-        history.append(f"{role}: {msg}")
-    return "\n".join(history)
+    h = []
+    for r, m in reversed(rows):
+        h.append(f"{r}: {m}")
+    return "\n".join(h)
 
-def save_personality(user_id, animal, trait):
+def save_personality(uid, animal, trait):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("DELETE FROM personality WHERE user_id = ?", (user_id,))
-    c.execute("INSERT INTO personality (user_id, animal, trait) VALUES (?, ?, ?)", (user_id, animal, trait))
+    c.execute("DELETE FROM personality WHERE user_id = ?", (uid,))
+    c.execute("INSERT INTO personality (user_id, animal, trait) VALUES (?, ?, ?)", (uid, animal, trait))
     conn.commit()
     conn.close()
 
-def get_personality(user_id):
+def get_personality(uid):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT animal, trait FROM personality WHERE user_id = ? ORDER BY date DESC LIMIT 1", (user_id,))
-    result = c.fetchone()
+    c.execute("SELECT animal, trait FROM personality WHERE user_id = ? ORDER BY date DESC LIMIT 1", (uid,))
+    r = c.fetchone()
     conn.close()
-    return result if result else None
+    return r if r else None
 
-def get_game_state(user_id):
+def get_game_state(uid):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT wins, total_attempts, current_game_number, current_game_attempts, game_active FROM game_stats WHERE user_id = ?", (user_id,))
-    result = c.fetchone()
+    c.execute("SELECT wins, total_attempts, current_game_number, current_game_attempts, game_active FROM game_stats WHERE user_id = ?", (uid,))
+    r = c.fetchone()
     conn.close()
-    if result:
-        return {"wins": result[0], "total_attempts": result[1], "number": result[2], "attempts": result[3], "active": result[4]}
+    if r:
+        return {"wins": r[0], "total_attempts": r[1], "number": r[2], "attempts": r[3], "active": r[4]}
     return {"wins": 0, "total_attempts": 0, "number": None, "attempts": 0, "active": False}
 
-def update_game_state(user_id, wins=None, total_attempts=None, number=None, attempts=None, active=None):
+def update_game_state(uid, wins=None, total_attempts=None, number=None, attempts=None, active=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT id FROM game_stats WHERE user_id = ?", (user_id,))
+    c.execute("SELECT id FROM game_stats WHERE user_id = ?", (uid,))
     exists = c.fetchone()
     if exists:
-        updates = []
-        values = []
+        ups = []
+        vals = []
         if wins is not None:
-            updates.append("wins = ?")
-            values.append(wins)
+            ups.append("wins = ?")
+            vals.append(wins)
         if total_attempts is not None:
-            updates.append("total_attempts = ?")
-            values.append(total_attempts)
+            ups.append("total_attempts = ?")
+            vals.append(total_attempts)
         if number is not None:
-            updates.append("current_game_number = ?")
-            values.append(number)
+            ups.append("current_game_number = ?")
+            vals.append(number)
         if attempts is not None:
-            updates.append("current_game_attempts = ?")
-            values.append(attempts)
+            ups.append("current_game_attempts = ?")
+            vals.append(attempts)
         if active is not None:
-            updates.append("game_active = ?")
-            values.append(active)
-        updates.append("last_played = CURRENT_TIMESTAMP")
-        if updates:
-            values.append(user_id)
-            c.execute(f"UPDATE game_stats SET {', '.join(updates)} WHERE user_id = ?", values)
+            ups.append("game_active = ?")
+            vals.append(active)
+        ups.append("last_played = CURRENT_TIMESTAMP")
+        if ups:
+            vals.append(uid)
+            c.execute(f"UPDATE game_stats SET {', '.join(ups)} WHERE user_id = ?", vals)
     else:
-        c.execute("INSERT INTO game_stats (user_id, wins, total_attempts, current_game_number, current_game_attempts, game_active, last_played) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)", (user_id, wins or 0, total_attempts or 0, number, attempts or 0, 1 if active else 0))
+        c.execute("INSERT INTO game_stats (user_id, wins, total_attempts, current_game_number, current_game_attempts, game_active, last_played) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)", (uid, wins or 0, total_attempts or 0, number, attempts or 0, 1 if active else 0))
     conn.commit()
     conn.close()
 
-def track_user_action(user_id, session_id, action, details=None):
+def track_action(uid, sid, action, details=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO analytics (user_id, session_id, action, details) VALUES (?, ?, ?, ?)", (user_id, session_id, action, details))
+    c.execute("INSERT INTO analytics (user_id, session_id, action, details) VALUES (?, ?, ?, ?)", (uid, sid, action, details))
     conn.commit()
     conn.close()
 
-def get_user_stats():
+def get_stats():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM users")
     total_users = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM users WHERE created_at > date('now', '-7 days')")
-    new_users_week = c.fetchone()[0]
+    new_week = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM users WHERE date(created_at) = date('now')")
-    new_users_today = c.fetchone()[0]
+    new_today = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM conversations")
-    total_conversations = c.fetchone()[0]
+    total_conv = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM conversations WHERE date(timestamp) = date('now')")
-    conversations_today = c.fetchone()[0]
+    conv_today = c.fetchone()[0]
     c.execute("SELECT COUNT(DISTINCT session_id) FROM analytics WHERE date(timestamp) = date('now')")
-    active_sessions_today = c.fetchone()[0]
+    active = c.fetchone()[0]
     c.execute("SELECT COUNT(DISTINCT user_id) FROM personality")
     personality_count = c.fetchone()[0]
     c.execute("SELECT a.timestamp, u.username, a.action, a.details FROM analytics a LEFT JOIN users u ON a.user_id = u.id ORDER BY a.timestamp DESC LIMIT 20")
-    recent_activity = c.fetchall()
+    recent = c.fetchall()
     conn.close()
-    return {"total_users": total_users, "new_users_week": new_users_week, "new_users_today": new_users_today, "total_conversations": total_conversations, "conversations_today": conversations_today, "active_sessions_today": active_sessions_today, "personality_count": personality_count, "recent_activity": recent_activity}
+    return {"total_users": total_users, "new_users_week": new_week, "new_users_today": new_today, "total_conversations": total_conv, "conversations_today": conv_today, "active_sessions_today": active, "personality_count": personality_count, "recent_activity": recent}
 
-def is_admin(user_id):
+def is_admin(uid):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT username FROM users WHERE id = ?", (user_id,))
-    result = c.fetchone()
+    c.execute("SELECT username FROM users WHERE id = ?", (uid,))
+    r = c.fetchone()
     conn.close()
-    return result and (result[0] == 'admin' or user_id == 1)
+    return r and (r[0] == 'admin' or uid == 1)
 
 def generate_image(prompt):
     try:
-        clean_prompt = prompt.replace("chora", "").replace("picha ya", "").replace("draw", "").strip()
-        encoded_prompt = requests.utils.quote(clean_prompt)
-        return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=512&nologo=true"
+        clean = prompt.replace("chora", "").replace("picha ya", "").replace("draw", "").strip()
+        enc = requests.utils.quote(clean)
+        return f"https://image.pollinations.ai/prompt/{enc}?width=512&height=512&nologo=true"
     except:
         return None
 
-def personality_test_result(answers):
+def personality_result(answers):
     if answers.get('likes_night') and answers.get('likes_flying'):
-        return {"animal": "Bundi 🦉", "trait": "Una hekima na utulivu. Wewe ni mwenye busara!"}
+        return {"animal": "Bundi 🦉", "trait": "Una hekima na utulivu."}
     elif answers.get('likes_night') and not answers.get('likes_flying'):
-        return {"animal": "Paka 🐱", "trait": "Wewe ni mwenye ustaarabu, mpenda faragha, na unajitegemea!"}
+        return {"animal": "Paka 🐱", "trait": "Mpenda faragha, unajitegemea."}
     elif not answers.get('likes_night') and answers.get('likes_flying'):
-        return {"animal": "Ndege 🦅", "trait": "Una roho ya uhuru, unapenda kusafiri na kuchunguza mambo mapya!"}
+        return {"animal": "Ndege 🦅", "trait": "Una roho ya uhuru."}
     elif not answers.get('likes_night') and answers.get('likes_people'):
-        return {"animal": "Simba 🦁", "trait": "Una uongozi, ujasiri, na unapenda kuwa katikati ya watu!"}
+        return {"animal": "Simba 🦁", "trait": "Una uongozi na ujasiri."}
     else:
-        return {"animal": "Tembo 🐘", "trait": "Una hekima, uaminifu, na unakumbuka mambo mengi!"}
+        return {"animal": "Tembo 🐘", "trait": "Una hekima na uaminifu."}
 
 def ask_groq(question, user_name, history):
     if not GROQ_API_KEY:
-        return get_fallback_response(question, user_name)
+        return fallback(question, user_name)
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        system_prompt = f"Wewe ni Nexora AI. Jina lako ni NEXORA AI. Ulitengenezwa na DENIS ALBERT, mwanafunzi wa ST. AMEDEUS. Jina la mtumiaji ni {user_name}. Jibu kwa KISWAHILI tu. Tumia emoji kidogo. Mazungumzo yaliyopita: {history}"
-        payload = {"model": GROQ_MODEL, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": question}], "temperature": 0.7, "max_tokens": 400}
-        response = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
+        sys_prompt = f"Wewe ni Nexora AI. Jina lako ni NEXORA AI. Ulitengenezwa na DENIS ALBERT, mwanafunzi wa ST. AMEDEUS. Jina la mtumiaji ni {user_name}. Jibu kwa KISWAHILI tu. Tumia emoji kidogo. Mazungumzo yaliyopita: {history}"
+        payload = {"model": GROQ_MODEL, "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}], "temperature": 0.7, "max_tokens": 400}
+        resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
             return data.get("choices", [{}])[0].get("message", {}).get("content", "Samahani, sikuelewa.")
         else:
-            return get_fallback_response(question, user_name)
+            return fallback(question, user_name)
     except:
-        return get_fallback_response(question, user_name)
+        return fallback(question, user_name)
 
-def get_fallback_response(question, user_name):
+def fallback(question, user_name):
     q = question.lower()
     if "jina lako" in q or "unaitwa nani" in q:
         return f"Naitwa Nexora AI! Nimetengenezwa na Denis Albert, mwanafunzi wa St. Amedeus. 🎓😊"
@@ -260,8 +262,8 @@ def serve_manifest():
 
 @app.route('/static/icon-512.png')
 def generate_icon():
-    svg_content = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#a855f7" rx="100"/><text x="256" y="380" font-family="Arial, Helvetica, sans-serif" font-size="380" font-weight="bold" fill="white" text-anchor="middle">N</text></svg>'
-    return svg_content, 200, {'Content-Type': 'image/svg+xml'}
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#a855f7" rx="100"/><text x="256" y="380" font-family="Arial" font-size="380" font-weight="bold" fill="white" text-anchor="middle">N</text></svg>'
+    return svg, 200, {'Content-Type': 'image/svg+xml'}
 
 @app.route('/')
 def index():
@@ -274,105 +276,77 @@ def admin_stats():
     if 'user_id' not in session:
         return redirect('/')
     if not is_admin(session['user_id']):
-        return "<h2>⛔ Huna ruhusa ya kuona ukurasa huu.</h2><p><a href='/'>Rudi kwenye chat</a></p>", 403
-    stats = get_user_stats()
+        return "<h2>⛔ Huna ruhusa.</h2><p><a href='/'>Rudi</a></p>", 403
+    s = get_stats()
     html = f'''<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexora AI - Admin</title>
-<style>
-* {{ margin:0; padding:0; box-sizing:border-box; }}
-body {{ font-family:-apple-system, 'Segoe UI', sans-serif; background:#0f0f13; color:#e4e4e7; padding:20px; }}
-.container {{ max-width:1200px; margin:0 auto; }}
-h1 {{ color:#c084fc; margin-bottom:20px; }}
-.admin-badge {{ background:#ef4444; color:white; padding:4px 12px; border-radius:20px; font-size:0.8rem; margin-left:10px; }}
-.stats-grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:20px; margin-bottom:30px; }}
-.stat-card {{ background:#1a1a24; border-radius:16px; padding:20px; text-align:center; border:1px solid #2a2a3a; }}
-.stat-number {{ font-size:2.5rem; font-weight:bold; color:#a855f7; }}
-.stat-label {{ color:#a1a1aa; margin-top:8px; }}
-table {{ width:100%; background:#1a1a24; border-radius:16px; border-collapse:collapse; }}
-th, td {{ padding:12px; text-align:left; border-bottom:1px solid #2a2a3a; }}
-th {{ background:#2a2a3a; color:#c084fc; }}
-.back-btn {{ background:#a855f7; border:none; border-radius:8px; padding:10px 20px; color:white; cursor:pointer; margin-bottom:20px; margin-right:10px; }}
-.logout-btn {{ background:#ef4444; }}
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nexora AI - Admin</title>
+<style>*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:-apple-system,'Segoe UI',sans-serif;background:#0f0f13;color:#e4e4e7;padding:20px}}.container{{max-width:1200px;margin:0 auto}}h1{{color:#c084fc;margin-bottom:20px}}.admin-badge{{background:#ef4444;color:#fff;padding:4px 12px;border-radius:20px;font-size:.8rem;margin-left:10px}}.stats-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-bottom:30px}}.stat-card{{background:#1a1a24;border-radius:16px;padding:20px;text-align:center;border:1px solid #2a2a3a}}.stat-number{{font-size:2.5rem;font-weight:bold;color:#a855f7}}.stat-label{{color:#a1a1aa;margin-top:8px}}table{{width:100%;background:#1a1a24;border-radius:16px;border-collapse:collapse}}th,td{{padding:12px;text-align:left;border-bottom:1px solid #2a2a3a}}th{{background:#2a2a3a;color:#c084fc}}.btn{{background:#a855f7;border:none;border-radius:8px;padding:10px 20px;color:#fff;cursor:pointer;margin-bottom:20px;margin-right:10px}}.logout{{background:#ef4444}}
 </style>
 </head>
 <body>
-<div class="container">
-<div><button class="back-btn" onclick="window.location.href='/'">← Nyuma</button><button class="back-btn logout-btn" onclick="logout()">🚪 Toka</button></div>
+<div class="container"><div><button class="btn" onclick="window.location.href='/'">← Nyuma</button><button class="btn logout" onclick="logout()">🚪 Toka</button></div>
 <h1>📊 Admin Dashboard <span class="admin-badge">ADMIN</span></h1>
 <div class="stats-grid">
-<div class="stat-card"><div class="stat-number">{stats['total_users']}</div><div class="stat-label">Jumla ya Watumiaji</div></div>
-<div class="stat-card"><div class="stat-number">{stats['new_users_week']}</div><div class="stat-label">Wapya Wiki Hii</div></div>
-<div class="stat-card"><div class="stat-number">{stats['new_users_today']}</div><div class="stat-label">Wapya Leo</div></div>
-<div class="stat-card"><div class="stat-number">{stats['active_sessions_today']}</div><div class="stat-label">Vikao Hai Leo</div></div>
-<div class="stat-card"><div class="stat-number">{stats['total_conversations']}</div><div class="stat-label">Jumla Mazungumzo</div></div>
-<div class="stat-card"><div class="stat-number">{stats['conversations_today']}</div><div class="stat-label">Mazungumzo Leo</div></div>
-<div class="stat-card"><div class="stat-number">{stats['personality_count']}</div><div class="stat-label">Personality Test</div></div>
+<div class="stat-card"><div class="stat-number">{s['total_users']}</div><div class="stat-label">Jumla Watumiaji</div></div>
+<div class="stat-card"><div class="stat-number">{s['new_users_week']}</div><div class="stat-label">Wapya Wiki Hii</div></div>
+<div class="stat-card"><div class="stat-number">{s['new_users_today']}</div><div class="stat-label">Wapya Leo</div></div>
+<div class="stat-card"><div class="stat-number">{s['active_sessions_today']}</div><div class="stat-label">Vikao Hai Leo</div></div>
+<div class="stat-card"><div class="stat-number">{s['total_conversations']}</div><div class="stat-label">Jumla Mazungumzo</div></div>
+<div class="stat-card"><div class="stat-number">{s['conversations_today']}</div><div class="stat-label">Mazungumzo Leo</div></div>
+<div class="stat-card"><div class="stat-number">{s['personality_count']}</div><div class="stat-label">Personality Test</div></div>
 </div>
 <h2>📝 Shughuli za Hivi Karibuni</h2>
-<div style="overflow-x:auto;">
-<table>
-<thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th><th>Maelezo</th></tr></thead>
-<tbody>'''
-    for act in stats['recent_activity']:
+<div style="overflow-x:auto;"><table><thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th><th>Maelezo</th></tr></thead><tbody>'''
+    for act in s['recent_activity']:
         html += f'<tr><td>{act[0]}</td><td>{act[1] or "Anonymous"}</td><td>{act[2]}</td><td>{str(act[3])[:50] if act[3] else "-"}</td></tr>'
-    html += '''</tbody>
-</table>
-</div>
-</div>
-<script>
-async function logout() {
-    await fetch('/api/logout', { method: 'POST' });
-    window.location.href = '/';
-}
-</script>
-</body>
-</html>'''
+    html += '''</tbody></table></div></div>
+<script>async function logout(){await fetch('/api/logout',{method:'POST'});window.location.href='/';}</script>
+</body></html>'''
     return html
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    username = data.get('username', '').strip()
-    password = data.get('password', '').strip()
-    if not username or not password:
-        return jsonify({"success": False, "error": "Tafadhali jaza nafasi zote"})
-    user_id = authenticate_user(username, password)
-    if user_id:
-        session['user_id'] = user_id
-        session['username'] = username
+    u = data.get('username', '').strip()
+    p = data.get('password', '').strip()
+    rm = data.get('rememberMe', False)
+    if not u or not p:
+        return jsonify({"success": False, "error": "Jaza nafasi zote"})
+    uid = authenticate_user(u, p)
+    if uid:
+        session.permanent = rm
+        session['user_id'] = uid
+        session['username'] = u
         session['session_id'] = str(uuid.uuid4())
-        track_user_action(user_id, session['session_id'], 'login', f"{username} aliingia")
-        return jsonify({"success": True, "username": username})
+        track_action(uid, session['session_id'], 'login', f"{u} aliingia")
+        return jsonify({"success": True, "username": u})
     else:
         return jsonify({"success": False, "error": "Jina au password si sahihi"})
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
     data = request.json
-    username = data.get('username', '').strip()
-    password = data.get('password', '').strip()
-    if not username or not password:
-        return jsonify({"success": False, "error": "Tafadhali jaza nafasi zote"})
-    if len(password) < 4:
+    u = data.get('username', '').strip()
+    p = data.get('password', '').strip()
+    if not u or not p:
+        return jsonify({"success": False, "error": "Jaza nafasi zote"})
+    if len(p) < 4:
         return jsonify({"success": False, "error": "Password lazima iwe na herufi 4 au zaidi"})
-    user_id = create_user(username, password)
-    if user_id:
-        session['user_id'] = user_id
-        session['username'] = username
+    uid = create_user(u, p)
+    if uid:
+        session.permanent = True
+        session['user_id'] = uid
+        session['username'] = u
         session['session_id'] = str(uuid.uuid4())
-        track_user_action(user_id, session['session_id'], 'signup', f"{username} alijisajili")
-        return jsonify({"success": True, "username": username})
+        track_action(uid, session['session_id'], 'signup', f"{u} alijisajili")
+        return jsonify({"success": True, "username": u})
     else:
         return jsonify({"success": False, "error": "Jina la mtumiaji tayari lipo"})
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
     if 'user_id' in session and 'session_id' in session:
-        track_user_action(session['user_id'], session['session_id'], 'logout', "Alitoka")
+        track_action(session['user_id'], session['session_id'], 'logout', "Alitoka")
     session.clear()
     return jsonify({"success": True})
 
@@ -382,27 +356,27 @@ def chat():
         return jsonify({"error": "Unauthorized"}), 401
     data = request.json
     msg = data.get('message', '')
-    user_id = session['user_id']
-    username = session['username']
+    uid = session['user_id']
+    uname = session['username']
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-    session_id = session['session_id']
-    track_user_action(user_id, session_id, 'send_message', msg[:100])
-    save_conversation(user_id, "Mtumiaji", msg)
-    history = get_conversation_history(user_id, 10)
-    reply = ask_groq(msg, username, history)
-    save_conversation(user_id, "Nexora", reply)
-    track_user_action(user_id, session_id, 'ai_response', reply[:100])
+    sid = session['session_id']
+    track_action(uid, sid, 'send_message', msg[:100])
+    save_conversation(uid, "Mtumiaji", msg)
+    history = get_conversation_history(uid, 10)
+    reply = ask_groq(msg, uname, history)
+    save_conversation(uid, "Nexora", reply)
+    track_action(uid, sid, 'ai_response', reply[:100])
     return jsonify({"reply": reply})
 
 @app.route('/api/profile', methods=['GET'])
 def profile():
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized"}), 401
-    user_id = session['user_id']
-    personality = get_personality(user_id)
-    game = get_game_state(user_id)
-    return jsonify({"username": session['username'], "personality": personality, "wins": game['wins'], "total_attempts": game['total_attempts']})
+    uid = session['user_id']
+    p = get_personality(uid)
+    g = get_game_state(uid)
+    return jsonify({"username": session['username'], "personality": p, "wins": g['wins'], "total_attempts": g['total_attempts']})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
