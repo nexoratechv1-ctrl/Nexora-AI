@@ -3,60 +3,49 @@ import requests
 import json
 import random
 import hashlib
+import sqlite3
 import uuid
-import psycopg2
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, session, send_from_directory, redirect
 from flask_cors import CORS
-from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'nexora_secret_key_2025_talent_day')
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 60 * 60
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 CORS(app, supports_credentials=True)
 
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
-# ========== POSTGRESQL DATABASE ==========
-DATABASE_URL = os.environ.get('DATABASE_URL', '')
-
-def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
+DB_NAME = "nexora_users.db"
 
 def init_db():
-    if not DATABASE_URL:
-        print("⚠️ DATABASE_URL not set. Using SQLite fallback.")
-        return
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS conversations (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         role TEXT NOT NULL,
         message TEXT NOT NULL,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS personality (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         animal TEXT NOT NULL,
         trait TEXT NOT NULL,
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS game_stats (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         wins INTEGER DEFAULT 0,
         total_attempts INTEGER DEFAULT 0,
@@ -66,7 +55,7 @@ def init_db():
         last_played TIMESTAMP
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS analytics (
-        id SERIAL PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         session_id TEXT NOT NULL,
         action TEXT NOT NULL,
@@ -75,7 +64,7 @@ def init_db():
     )''')
     conn.commit()
     conn.close()
-    print("✅ PostgreSQL database initialized")
+    print("✅ Database initialized")
 
 init_db()
 
@@ -83,14 +72,12 @@ def hash_password(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
 def create_user(u, p):
-    if not DATABASE_URL:
-        return None
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (username, password) VALUES (%s, %s) RETURNING id", (u, hash_password(p)))
-        uid = c.fetchone()[0]
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (u, hash_password(p)))
         conn.commit()
+        uid = c.lastrowid
         conn.close()
         return uid
     except:
@@ -98,30 +85,24 @@ def create_user(u, p):
         return None
 
 def authenticate_user(u, p):
-    if not DATABASE_URL:
-        return None
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE username = %s AND password = %s", (u, hash_password(p)))
+    c.execute("SELECT id FROM users WHERE username = ? AND password = ?", (u, hash_password(p)))
     r = c.fetchone()
     conn.close()
     return r[0] if r else None
 
 def save_conversation(uid, role, msg):
-    if not DATABASE_URL:
-        return
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO conversations (user_id, role, message) VALUES (%s, %s, %s)", (uid, role, msg))
+    c.execute("INSERT INTO conversations (user_id, role, message) VALUES (?, ?, ?)", (uid, role, msg))
     conn.commit()
     conn.close()
 
 def get_conversation_history(uid, limit=20):
-    if not DATABASE_URL:
-        return ""
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT role, message FROM conversations WHERE user_id = %s ORDER BY timestamp DESC LIMIT %s", (uid, limit))
+    c.execute("SELECT role, message FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (uid, limit))
     rows = c.fetchall()
     conn.close()
     h = []
@@ -130,31 +111,25 @@ def get_conversation_history(uid, limit=20):
     return "\n".join(h)
 
 def save_personality(uid, animal, trait):
-    if not DATABASE_URL:
-        return
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("DELETE FROM personality WHERE user_id = %s", (uid,))
-    c.execute("INSERT INTO personality (user_id, animal, trait) VALUES (%s, %s, %s)", (uid, animal, trait))
+    c.execute("DELETE FROM personality WHERE user_id = ?", (uid,))
+    c.execute("INSERT INTO personality (user_id, animal, trait) VALUES (?, ?, ?)", (uid, animal, trait))
     conn.commit()
     conn.close()
 
 def get_personality(uid):
-    if not DATABASE_URL:
-        return None
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT animal, trait FROM personality WHERE user_id = %s ORDER BY date DESC LIMIT 1", (uid,))
+    c.execute("SELECT animal, trait FROM personality WHERE user_id = ? ORDER BY date DESC LIMIT 1", (uid,))
     r = c.fetchone()
     conn.close()
     return r if r else None
 
 def get_game_state(uid):
-    if not DATABASE_URL:
-        return {"wins": 0, "total_attempts": 0, "number": None, "attempts": 0, "active": False}
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT wins, total_attempts, current_game_number, current_game_attempts, game_active FROM game_stats WHERE user_id = %s", (uid,))
+    c.execute("SELECT wins, total_attempts, current_game_number, current_game_attempts, game_active FROM game_stats WHERE user_id = ?", (uid,))
     r = c.fetchone()
     conn.close()
     if r:
@@ -162,64 +137,58 @@ def get_game_state(uid):
     return {"wins": 0, "total_attempts": 0, "number": None, "attempts": 0, "active": False}
 
 def update_game_state(uid, wins=None, total_attempts=None, number=None, attempts=None, active=None):
-    if not DATABASE_URL:
-        return
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT id FROM game_stats WHERE user_id = %s", (uid,))
+    c.execute("SELECT id FROM game_stats WHERE user_id = ?", (uid,))
     exists = c.fetchone()
     if exists:
         ups = []
         vals = []
         if wins is not None:
-            ups.append("wins = %s")
+            ups.append("wins = ?")
             vals.append(wins)
         if total_attempts is not None:
-            ups.append("total_attempts = %s")
+            ups.append("total_attempts = ?")
             vals.append(total_attempts)
         if number is not None:
-            ups.append("current_game_number = %s")
+            ups.append("current_game_number = ?")
             vals.append(number)
         if attempts is not None:
-            ups.append("current_game_attempts = %s")
+            ups.append("current_game_attempts = ?")
             vals.append(attempts)
         if active is not None:
-            ups.append("game_active = %s")
+            ups.append("game_active = ?")
             vals.append(active)
         ups.append("last_played = CURRENT_TIMESTAMP")
         if ups:
             vals.append(uid)
-            c.execute(f"UPDATE game_stats SET {', '.join(ups)} WHERE user_id = %s", vals)
+            c.execute(f"UPDATE game_stats SET {', '.join(ups)} WHERE user_id = ?", vals)
     else:
-        c.execute("INSERT INTO game_stats (user_id, wins, total_attempts, current_game_number, current_game_attempts, game_active, last_played) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)", (uid, wins or 0, total_attempts or 0, number, attempts or 0, 1 if active else 0))
+        c.execute("INSERT INTO game_stats (user_id, wins, total_attempts, current_game_number, current_game_attempts, game_active, last_played) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)", (uid, wins or 0, total_attempts or 0, number, attempts or 0, 1 if active else 0))
     conn.commit()
     conn.close()
 
 def track_action(uid, sid, action, details=None):
-    if not DATABASE_URL:
-        return
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO analytics (user_id, session_id, action, details) VALUES (%s, %s, %s, %s)", (uid, sid, action, details))
+    c.execute("INSERT INTO analytics (user_id, session_id, action, details) VALUES (?, ?, ?, ?)", (uid, sid, action, details))
     conn.commit()
     conn.close()
 
 def get_stats():
-    if not DATABASE_URL:
-        return {"total_users": 0, "new_users_week": 0, "new_users_today": 0, "total_conversations": 0, "conversations_today": 0, "active_sessions_today": 0, "personality_count": 0, "recent_activity": []}
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM users")
     total_users = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'")
+    c.execute("SELECT COUNT(*) FROM users WHERE created_at > date('now', '-7 days')")
     new_week = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURRENT_DATE")
+    c.execute("SELECT COUNT(*) FROM users WHERE date(created_at) = date('now')")
     new_today = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM conversations")
     total_conv = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM conversations WHERE DATE(timestamp) = CURRENT_DATE")
+    c.execute("SELECT COUNT(*) FROM conversations WHERE date(timestamp) = date('now')")
     conv_today = c.fetchone()[0]
-    c.execute("SELECT COUNT(DISTINCT session_id) FROM analytics WHERE DATE(timestamp) = CURRENT_DATE")
+    c.execute("SELECT COUNT(DISTINCT session_id) FROM analytics WHERE date(timestamp) = date('now')")
     active = c.fetchone()[0]
     c.execute("SELECT COUNT(DISTINCT user_id) FROM personality")
     personality_count = c.fetchone()[0]
@@ -229,11 +198,9 @@ def get_stats():
     return {"total_users": total_users, "new_users_week": new_week, "new_users_today": new_today, "total_conversations": total_conv, "conversations_today": conv_today, "active_sessions_today": active, "personality_count": personality_count, "recent_activity": recent}
 
 def is_admin(uid):
-    if not DATABASE_URL:
-        return uid == 1
-    conn = get_db_connection()
+    conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT username FROM users WHERE id = %s", (uid,))
+    c.execute("SELECT username FROM users WHERE id = ?", (uid,))
     r = c.fetchone()
     conn.close()
     return r and (r[0] == 'admin' or uid == 1)
