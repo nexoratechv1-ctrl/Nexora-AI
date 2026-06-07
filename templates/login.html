@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, 'Segoe UI', 'Inter', sans-serif;
+            font-family: -apple-system, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #0f0f13, #1a1a2e);
             min-height: 100vh;
             display: flex;
@@ -23,10 +23,7 @@
             max-width: 400px;
             border: 1px solid rgba(168,85,247,0.2);
         }
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+        .logo { text-align: center; margin-bottom: 30px; }
         .logo-icon {
             width: 60px;
             height: 60px;
@@ -38,22 +35,9 @@
             font-size: 30px;
             margin: 0 auto 15px;
         }
-        .logo-text {
-            font-size: 1.8rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, #c084fc, #60a5fa);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .subtitle {
-            text-align: center;
-            color: #a1a1aa;
-            margin-bottom: 30px;
-        }
-        .input-group {
-            margin-bottom: 20px;
-        }
+        .logo-text { font-size: 1.8rem; font-weight: 600; background: linear-gradient(135deg, #c084fc, #60a5fa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .subtitle { text-align: center; color: #a1a1aa; margin-bottom: 30px; }
+        .input-group { margin-bottom: 20px; }
         .input-group input {
             width: 100%;
             background: #1a1a24;
@@ -64,9 +48,15 @@
             font-size: 1rem;
             outline: none;
         }
-        .input-group input:focus {
-            border-color: #a855f7;
+        .input-group input:focus { border-color: #a855f7; }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
         }
+        .checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-group label { color: #a1a1aa; cursor: pointer; font-size: 0.9rem; }
         .btn {
             width: 100%;
             background: linear-gradient(135deg, #a855f7, #7c3aed);
@@ -79,27 +69,10 @@
             cursor: pointer;
             margin-bottom: 15px;
         }
-        .btn-secondary {
-            background: transparent;
-            border: 1px solid #2a2a3a;
-            color: #a1a1aa;
-        }
-        .error {
-            color: #f87171;
-            font-size: 0.8rem;
-            text-align: center;
-            margin-top: 10px;
-        }
-        .switch {
-            text-align: center;
-            color: #a1a1aa;
-            font-size: 0.85rem;
-        }
-        .switch a {
-            color: #c084fc;
-            cursor: pointer;
-            text-decoration: none;
-        }
+        .btn-secondary { background: transparent; border: 1px solid #2a2a3a; color: #a1a1aa; }
+        .error { color: #f87171; font-size: 0.8rem; text-align: center; margin-top: 10px; }
+        .switch { text-align: center; color: #a1a1aa; font-size: 0.85rem; }
+        .switch a { color: #c084fc; cursor: pointer; text-decoration: none; }
         .hidden { display: none; }
     </style>
 </head>
@@ -117,6 +90,10 @@
         </div>
         <div class="input-group">
             <input type="password" id="loginPassword" placeholder="Password">
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="rememberMe">
+            <label for="rememberMe">Nikumbuke (Remember Me)</label>
         </div>
         <button class="btn" onclick="login()">Ingia</button>
         <div class="switch">Huna akaunti? <a onclick="showSignup()">Jisajili</a></div>
@@ -141,14 +118,18 @@
     async function login() {
         const username = document.getElementById('loginUsername').value.trim();
         const password = document.getElementById('loginPassword').value.trim();
+        const rememberMe = document.getElementById('rememberMe').checked;
         
         const res = await fetch('/api/login', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username, password})
+            body: JSON.stringify({username, password, rememberMe})
         });
         const data = await res.json();
-        if (data.success) window.location.href = '/';
-        else document.getElementById('loginError').innerText = data.error;
+        if (data.success) {
+            window.location.href = '/';
+        } else {
+            document.getElementById('loginError').innerText = data.error;
+        }
     }
     
     async function signup() {
@@ -160,8 +141,11 @@
             body: JSON.stringify({username, password})
         });
         const data = await res.json();
-        if (data.success) window.location.href = '/';
-        else document.getElementById('signupError').innerText = data.error;
+        if (data.success) {
+            window.location.href = '/';
+        } else {
+            document.getElementById('signupError').innerText = data.error;
+        }
     }
     
     function showSignup() {
@@ -181,4 +165,4 @@
     });
 </script>
 </body>
-</html>
+        </html>
