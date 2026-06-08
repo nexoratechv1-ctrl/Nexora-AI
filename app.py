@@ -284,7 +284,7 @@ Mazungumzo yaliyopita: {history[-500:]}"""
             "model": GROQ_MODEL,
             "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}],
             "temperature": 0.7,
-            "max_tokens": 500,
+            "max_tokens": 900,
             "top_p": 0.9
         }
         resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
