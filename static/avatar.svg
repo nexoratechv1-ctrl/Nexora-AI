@@ -1,1 +1,16 @@
-
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="90" fill="#2a2a3a" stroke="#a855f7" stroke-width="3"/>
+  <path d="M30 80 Q30 30 100 30 Q170 30 170 80" fill="#1a1a2a" stroke="none"/>
+  <path d="M25 85 Q20 50 50 35 Q80 25 100 25 Q120 25 150 35 Q180 50 175 85" fill="#1a1a2a" stroke="none"/>
+  <ellipse cx="70" cy="95" rx="12" ry="14" fill="white"/>
+  <circle cx="73" cy="98" r="6" fill="#a855f7"/>
+  <circle cx="75" cy="96" r="2" fill="white"/>
+  <ellipse cx="130" cy="95" rx="12" ry="14" fill="white"/>
+  <circle cx="133" cy="98" r="6" fill="#a855f7"/>
+  <circle cx="135" cy="96" r="2" fill="white"/>
+  <path d="M55 78 Q70 70 85 78" stroke="#c084fc" stroke-width="3" fill="none"/>
+  <path d="M115 78 Q130 70 145 78" stroke="#c084fc" stroke-width="3" fill="none"/>
+  <path d="M100 105 L97 115 L103 115 Z" fill="#3a3a4a"/>
+  <ellipse id="avatarMouth" cx="100" cy="135" rx="18" ry="8" fill="#ff6b6b"/>
+  <polygon points="85,38 90,28 95,35 100,25 105,35 110,28 115,38" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+</svg>
