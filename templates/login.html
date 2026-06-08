@@ -35,7 +35,14 @@
             font-size: 30px;
             margin: 0 auto 15px;
         }
-        .logo-text { font-size: 1.8rem; font-weight: 600; background: linear-gradient(135deg, #c084fc, #60a5fa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .logo-text {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #c084fc, #60a5fa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
         .subtitle { text-align: center; color: #a1a1aa; margin-bottom: 30px; }
         .input-group { margin-bottom: 20px; }
         .input-group input {
@@ -49,14 +56,6 @@
             outline: none;
         }
         .input-group input:focus { border-color: #a855f7; }
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
-        .checkbox-group label { color: #a1a1aa; cursor: pointer; font-size: 0.9rem; }
         .btn {
             width: 100%;
             background: linear-gradient(135deg, #a855f7, #7c3aed);
@@ -91,10 +90,6 @@
         <div class="input-group">
             <input type="password" id="loginPassword" placeholder="Password">
         </div>
-        <div class="checkbox-group">
-            <input type="checkbox" id="rememberMe">
-            <label for="rememberMe">Nikumbuke (Remember Me)</label>
-        </div>
         <button class="btn" onclick="login()">Ingia</button>
         <div class="switch">Huna akaunti? <a onclick="showSignup()">Jisajili</a></div>
         <div id="loginError" class="error"></div>
@@ -118,11 +113,10 @@
     async function login() {
         const username = document.getElementById('loginUsername').value.trim();
         const password = document.getElementById('loginPassword').value.trim();
-        const rememberMe = document.getElementById('rememberMe').checked;
         
         const res = await fetch('/api/login', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username, password, rememberMe})
+            body: JSON.stringify({username, password})
         });
         const data = await res.json();
         if (data.success) {
@@ -156,13 +150,6 @@
         document.getElementById('signupForm').classList.add('hidden');
         document.getElementById('loginForm').classList.remove('hidden');
     }
-    
-    document.getElementById('loginPassword').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') login();
-    });
-    document.getElementById('signupPassword').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') signup();
-    });
 </script>
 </body>
-    </html>
+</html>
