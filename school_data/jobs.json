@@ -1,0 +1,25 @@
+{
+  "jobs": [
+    {
+      "id": 1,
+      "title": "Mwalimu wa Hisabati",
+      "requirements": "Shahada ya Elimu au Hisabati, uzoefu wa miaka 2",
+      "deadline": "2026-07-15",
+      "status": "open"
+    },
+    {
+      "id": 2,
+      "title": "Mwalimu wa Sayansi",
+      "requirements": "Shahada ya Elimu au Sayansi, uzoefu wa miaka 2",
+      "deadline": "2026-07-15",
+      "status": "open"
+    },
+    {
+      "id": 3,
+      "title": "Mwalimu wa Kiingereza",
+      "requirements": "Shahada ya Elimu au Kiingereza, uzoefu wa miaka 2",
+      "deadline": "2026-07-15",
+      "status": "open"
+    }
+  ]
+}
