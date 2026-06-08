@@ -21,9 +21,6 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 
 DB_NAME = "nexora_users.db"
 
-# ============================================================
-# DATABASE SETUP
-# ============================================================
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -71,9 +68,6 @@ def init_db():
 
 init_db()
 
-# ============================================================
-# HELPER FUNCTIONS
-# ============================================================
 def hash_password(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
@@ -149,9 +143,47 @@ def is_admin(uid):
     conn.close()
     return r and r[0] == 'admin'
 
-# ============================================================
-# SCHOOL DATA (St. Amedeus)
-# ============================================================
+def get_team_info():
+    return """👥 **NEXORA TECH TEAM** 👥
+
+🤖 **Nexora AI** imetengenezwa na timu ya Nexora Tech iliyoongozwa na:
+
+🌟 **DENIS ALBERT** - Kiongozi wa Timu (Team Leader) & Programmer Mkuu
+🌟 **JOEL DAVISON** - Backend Developer & Database Expert
+🌟 **JACK PHELEMON** - Frontend Developer & UI Designer
+🌟 **JOSHUA TECH** - Founder wa DMD.TZ & Technical Advisor
+🌟 **KYAN MICCAH** - AI Specialist & Machine Learning Engineer
+
+🏆 **Wengine waliochangia:**
+• peter kitomary - UI/UX Designer
+• benson bruno - QA Tester
+• annamary godson - Documentation & Support
+• St. Amedeus Tech Club - Washiriki wote
+• DMD.TZ Team - Technical Support
+
+💡 Nexora AI ni matunda ya bidii ya timu nzima ya Nexora Tech!
+🎓 Wote ni wanafunzi wa St. Amedeus na wana ndoto kubwa ya kuleta teknolojia kwa kila Mtanzania!
+
+🔥 *"Teknolojia si ngumu. Unachohitaji ni nia, bidii, na ushirikiano!"* - Denis Albert"""
+
+def get_welcome_message(user_name):
+    return f"""Habari {user_name}! 😊
+
+Nina furaha kuwa nawe. Mimi ni Nexora AI, rafiki yako wa kisasa.
+
+💡 **Unaweza kuniuliza:**
+• Maswali ya kawaida ("Habari", "Mambo vipi?")
+• Kuhusu shule ya St. Amedeus ("Historia ya shule")
+• Kuomba kazi ("Nataka kuomba kazi")
+• Matangazo ("Matangazo ya leo")
+• Kuchora picha ("Chora simba")
+• Kucheza namba ("Cheza namba")
+• Personality test ("Test ya mnyama")
+
+🔥 **Ukinitaka kujua zaidi, niulize tu "Unaitwa nani?"**
+
+Niko tayari kukusaidia! 😊👇"""
+
 SCHOOL_DATA_DIR = 'school_data'
 os.makedirs(SCHOOL_DATA_DIR, exist_ok=True)
 
@@ -171,7 +203,6 @@ def save_json(f, data):
     with open(f, 'w') as file:
         json.dump(data, file, indent=2)
 
-# Initialize school data files if empty
 if not os.path.exists(ANNOUNCEMENTS_FILE):
     save_json(ANNOUNCEMENTS_FILE, {"announcements": [
         {"id": 1, "title": "Karibu Shule ya St. Amedeus", "content": "Mwaka mpya wa masomo umeanza. Karibu wanafunzi wote!", "date": datetime.now().strftime('%Y-%m-%d'), "important": True}
@@ -183,9 +214,6 @@ if not os.path.exists(JOBS_FILE):
 if not os.path.exists(APPLICATIONS_FILE):
     save_json(APPLICATIONS_FILE, {"applications": []})
 
-# ============================================================
-# SCHOOL RESPONSES
-# ============================================================
 def get_school_answer(q):
     if "historia" in q:
         return "📚 St. Amedeus ilianzishwa mwaka 2001. Ina wanafunzi 800+ na walimu 45. Iko Dar es Salaam, Tanzania."
@@ -193,8 +221,6 @@ def get_school_answer(q):
         return "🎯 Dhamira: Kutoa elimu bora yenye maadili ya Kikristo."
     if "vision" in q or "maono" in q:
         return "👁️ Maono: Kuwa shule bora zaidi Tanzania."
-    if "denis" in q or "mtengenezaji" in q:
-        return "👨‍💻 Nimetengenezwa na Denis Albert Mwombeki, mwanafunzi wa St. Amedeus. Ana ujuzi wa programming na ana ndoto kubwa!"
     return None
 
 def process_job_application(msg, name):
@@ -222,16 +248,25 @@ def get_announcements_response():
         result += f"🔹 {a['title']}\n{a['content']}\n📅 {a['date']}\n\n"
     return result
 
-# ============================================================
-# AI RESPONSE (GROQ)
-# ============================================================
 def ask_groq(question, user_name, history):
     if not GROQ_API_KEY:
         return fallback(question, user_name)
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        sys_prompt = f"Wewe ni Nexora AI. Jina lako ni NEXORA AI. Ulitengenezwa na Denis Albert Mwombeki, mwanafunzi wa St. Amedeus. Jina la mtumiaji ni {user_name}. Jibu kwa KISWAHILI tu. Tumia emoji. Mazungumzo: {history}"
-        payload = {"model": GROQ_MODEL, "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}], "temperature": 0.7, "max_tokens": 800}
+        sys_prompt = f"""Wewe ni Nexora AI, chatbot rafiki anayezungumza Kiswahili.
+Jina la mtumiaji ni {user_name}.
+
+MUHIMU: Jibu kwa KISWAHILI tu. Tumia emoji kidogo.
+USIJITAMBULE KWA NGUVU. Ukisemwa "Unaitwa nani" ndipo utakapojitambulisha.
+
+Mazungumzo yaliyopita: {history[-500:]}"""
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}],
+            "temperature": 0.7,
+            "max_tokens": 400,
+            "top_p": 0.9
+        }
         resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
@@ -242,15 +277,14 @@ def ask_groq(question, user_name, history):
 
 def fallback(question, user_name):
     q = question.lower()
-    if "jina lako" in q or "unaitwa nani" in q:
-        return f"Naitwa Nexora AI! Nimetengenezwa na Denis Albert Mwombeki, mwanafunzi wa St. Amedeus. 🎓😊"
+    if "jina lako" in q or "unaitwa nani" in q or "wewe ni nani" in q:
+        return f"Naitwa Nexora AI! 🚀\n\n{get_team_info()}"
+    if "timu" in q or "watengenezaji" in q or "team" in q or "nexora tech" in q:
+        return get_team_info()
     if "habari" in q:
-        return f"Habari yangu ni nzuri sana, {user_name}! 😊"
-    return f"Samahani, {user_name}. Sijaelewa. Jaribu tena! 😊"
+        return f"Habari yangu ni nzuri sana, {user_name}! 😊 Na wewe habari yako?"
+    return f"Samahani, {user_name}. Sijaelewa vizuri. Jaribu tena! 😊"
 
-# ============================================================
-# STATIC FILES
-# ============================================================
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
@@ -264,9 +298,6 @@ def generate_icon():
     svg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#a855f7" rx="100"/><text x="256" y="380" font-family="Arial" font-size="380" font-weight="bold" fill="white" text-anchor="middle">N</text></svg>'
     return svg, 200, {'Content-Type': 'image/svg+xml'}
 
-# ============================================================
-# MAIN ROUTES
-# ============================================================
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -295,7 +326,9 @@ th,td{{padding:10px;text-align:left;border-bottom:1px solid #2a2a3a}}
 <div class="card"><div class="number">{s['total_conversations']}</div><div>Jumla Mazungumzo</div></div>
 </div>
 <h2>Shughuli za Hivi Karibuni</h2>
-<table><thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th></tr></thead><tbody>'''
+<table>
+<thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th></tr></thead>
+<tbody>'''
     for r in s['recent']:
         html += f'<tr><td>{r[0]}</td><td>{r[1] or "Anonymous"}</td><td>{r[2]}</td></tr>'
     html += '</tbody></table><br><button onclick="window.location.href=\'/\'" style="background:#a855f7;padding:10px 20px;border:none;border-radius:8px;color:white;cursor:pointer">← Nyuma</button></body></html>'
@@ -365,31 +398,26 @@ def chat():
     track_action(uid, sid, 'send_message', msg[:100])
     save_conversation(uid, "Mtumiaji", msg)
     
-    # Job application submission
     job_result = process_job_application(msg, uname)
     if job_result:
         save_conversation(uid, "Nexora", job_result)
         return jsonify({"reply": job_result})
     
-    # Job application form request
     if "kuomba kazi" in msg.lower() or "apply kazi" in msg.lower():
         form = "💼 FOMU YA KUOMBA KAZI\n\nAndika:\nJina: [jina lako]\nEmail: [barua pepe]\nNafasi: [jina la nafasi]"
         save_conversation(uid, "Nexora", form)
         return jsonify({"reply": form})
     
-    # School questions
     school_ans = get_school_answer(msg.lower())
     if school_ans:
         save_conversation(uid, "Nexora", school_ans)
         return jsonify({"reply": school_ans})
     
-    # Announcements
     if "tangazo" in msg.lower():
         ann = get_announcements_response()
         save_conversation(uid, "Nexora", ann)
         return jsonify({"reply": ann})
     
-    # Normal conversation
     history = get_conversation_history(uid, 10)
     reply = ask_groq(msg, uname, history)
     save_conversation(uid, "Nexora", reply)
@@ -402,9 +430,6 @@ def profile():
         return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"username": session['username']})
 
-# ============================================================
-# SCHOOL API ROUTES (for admin_school.html)
-# ============================================================
 @app.route('/api/school/announcements', methods=['GET'])
 def api_get_announcements():
     return jsonify(load_json(ANNOUNCEMENTS_FILE, {"announcements": []}))
