@@ -1,31 +1,21 @@
 <!DOCTYPE html>
 <html lang="sw">
 <head>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#a855f7">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Nexora AI</title>
-    
-    <!-- PWA Manifest and Meta Tags -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#a855f7">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Nexora AI">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
-    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, 'Segoe UI', 'Inter', sans-serif;
+            font-family: -apple-system, 'Segoe UI', sans-serif;
             background: #0f0f13;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-
         .app-container {
             width: 100%;
             max-width: 900px;
@@ -35,8 +25,6 @@
             flex-direction: column;
             overflow: hidden;
         }
-
-        /* Header */
         .header {
             padding: 16px 20px;
             border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -45,13 +33,11 @@
             justify-content: space-between;
             align-items: center;
         }
-
         .logo {
             display: flex;
             align-items: center;
             gap: 10px;
         }
-
         .logo-icon {
             width: 32px;
             height: 32px;
@@ -62,7 +48,6 @@
             justify-content: center;
             font-size: 18px;
         }
-
         .logo-text {
             font-size: 1.3rem;
             font-weight: 600;
@@ -71,7 +56,6 @@
             background-clip: text;
             color: transparent;
         }
-
         .logout-btn {
             background: rgba(239,68,68,0.15);
             border: 1px solid rgba(239,68,68,0.3);
@@ -79,10 +63,30 @@
             padding: 8px 16px;
             color: #f87171;
             cursor: pointer;
-            font-size: 0.8rem;
         }
-
-        /* Chat Area */
+        .avatar-section {
+            display: flex;
+            justify-content: center;
+            padding: 20px 0 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .avatar-container {
+            text-align: center;
+        }
+        .avatar-img {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+        }
+        .avatar-img svg {
+            width: 100%;
+            height: 100%;
+        }
+        .avatar-name {
+            color: #c084fc;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
         .chat-area {
             flex: 1;
             overflow-y: auto;
@@ -92,24 +96,19 @@
             gap: 24px;
             scroll-behavior: smooth;
         }
-
         .chat-area::-webkit-scrollbar { width: 4px; }
         .chat-area::-webkit-scrollbar-track { background: transparent; }
         .chat-area::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 10px; }
-
-        /* AI Message */
         .message-ai {
             display: flex;
             justify-content: flex-start;
             animation: fadeIn 0.3s ease;
         }
-
         .ai-bubble {
             max-width: 90%;
             background: transparent;
             padding: 4px 0;
         }
-
         .ai-header {
             display: flex;
             align-items: center;
@@ -117,7 +116,6 @@
             margin-bottom: 6px;
             flex-wrap: wrap;
         }
-
         .ai-avatar {
             width: 28px;
             height: 28px;
@@ -128,13 +126,11 @@
             justify-content: center;
             font-size: 14px;
         }
-
         .ai-name {
             font-size: 0.8rem;
             font-weight: 500;
             color: #a1a1aa;
         }
-
         .speak-btn {
             background: rgba(168,85,247,0.15);
             border: 1px solid rgba(168,85,247,0.3);
@@ -144,7 +140,6 @@
             font-size: 0.7rem;
             cursor: pointer;
         }
-
         .ai-text {
             white-space: pre-wrap;
             word-break: break-word;
@@ -153,14 +148,11 @@
             font-size: 0.95rem;
             line-height: 1.65;
         }
-
-        /* User Message */
         .message-user {
             display: flex;
             justify-content: flex-end;
             animation: fadeIn 0.3s ease;
         }
-
         .user-bubble {
             max-width: 85%;
             background: #2a2a3a;
@@ -170,20 +162,16 @@
             font-size: 0.95rem;
             line-height: 1.5;
         }
-
         .user-name {
             font-size: 0.7rem;
             color: #a1a1aa;
             margin-bottom: 6px;
             text-align: right;
         }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
-        /* Typing Indicator */
         .typing-indicator {
             display: flex;
             gap: 4px;
@@ -203,15 +191,12 @@
             0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
             30% { transform: translateY(-6px); opacity: 1; }
         }
-
-        /* Input Area */
         .input-wrapper {
             padding: 16px 20px 24px;
             background: #0f0f13;
             border-top: 1px solid rgba(255,255,255,0.08);
             flex-shrink: 0;
         }
-
         .input-container {
             display: flex;
             align-items: flex-end;
@@ -220,14 +205,7 @@
             border: 1px solid #2a2a3a;
             border-radius: 28px;
             padding: 8px 12px;
-            transition: all 0.2s;
         }
-
-        .input-container:focus-within {
-            border-color: #a855f7;
-            box-shadow: 0 0 0 2px rgba(168,85,247,0.2);
-        }
-
         .input-container textarea {
             flex: 1;
             background: transparent;
@@ -242,55 +220,7 @@
             min-height: 28px;
             max-height: 120px;
         }
-
-        .input-container textarea::placeholder {
-            color: #5a5a6e;
-        }
-
-        .icon-btn {
-            background: transparent;
-            border: none;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-
-        .mic-btn {
-            color: #4ade80;
-            background: rgba(74, 222, 128, 0.1);
-        }
-
-        .mic-btn:hover {
-            background: rgba(74, 222, 128, 0.2);
-        }
-
-        .mic-btn.listening {
-            background: rgba(239, 68, 68, 0.3);
-            color: #f87171;
-            animation: pulseMic 1.5s infinite;
-        }
-
-        @keyframes pulseMic {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
-        }
-
-        .new-btn {
-            color: #f87171;
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        .new-btn:hover {
-            background: rgba(239, 68, 68, 0.2);
-        }
-
+        .input-container textarea::placeholder { color: #5a5a6e; }
         .send-btn {
             background: linear-gradient(135deg, #a855f7, #7c3aed);
             border: none;
@@ -303,33 +233,15 @@
             height: 36px;
             flex-shrink: 0;
         }
-
         @media (max-width: 600px) {
             .chat-area { padding: 16px; gap: 20px; }
             .ai-text { font-size: 0.9rem; margin-left: 36px; }
             .user-bubble { padding: 10px 14px; max-width: 90%; }
             .input-wrapper { padding: 12px 16px 20px; }
-            .icon-btn { width: 32px; height: 32px; font-size: 1rem; }
             .send-btn { padding: 6px 16px; font-size: 0.8rem; height: 32px; }
+            .avatar-img { width: 60px; height: 60px; }
         }
     </style>
-    
-    <script>
-        // Register Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registered:', reg))
-                    .catch(err => console.log('Service Worker error:', err));
-            });
-        }
-        
-        // Logout function
-        async function logout() {
-            await fetch('/api/logout', { method: 'POST' });
-            window.location.href = '/';
-        }
-    </script>
 </head>
 <body>
 <div class="app-container">
@@ -340,6 +252,15 @@
         </div>
         <button class="logout-btn" onclick="logout()">🚪 Toka</button>
     </div>
+    
+    <div class="avatar-section">
+        <div class="avatar-container">
+            <div id="avatarImage" class="avatar-img">
+                <img src="/static/avatar.svg" alt="Nexora AI Avatar" style="width: 100%; height: 100%;">
+            </div>
+            <div class="avatar-name">Nexora AI <span id="avatarStatus">😊</span></div>
+        </div>
+    </div>
 
     <div class="chat-area" id="chatArea">
         <div class="message-ai">
@@ -349,7 +270,7 @@
                     <span class="ai-name">Nexora AI</span>
                     <button class="speak-btn" id="welcomeSpeakBtn">🔊 Soma</button>
                 </div>
-                <div class="ai-text">Habari! Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na Denis Albert, programmer mashuhuri na mwanafunzi wa St. Amedeus. 😊🚀</div>
+                <div class="ai-text">Habari! Tafadhali niambie jina lako. Mimi ni Nexora AI, nimetengenezwa na Denis Albert Mwombeki, mwanafunzi wa St. Amedeus. 😊🚀</div>
             </div>
         </div>
     </div>
@@ -357,8 +278,6 @@
     <div class="input-wrapper">
         <div class="input-container">
             <textarea id="userInput" placeholder="Andika ujumbe wako..." rows="1"></textarea>
-            <button class="icon-btn mic-btn" id="voiceBtn" title="Bonyeza kuongea">🎤</button>
-            <button class="icon-btn new-btn" id="resetBtn" title="Anza mazungumzo mpya">🔄</button>
             <button class="send-btn" id="sendBtn">Tuma</button>
         </div>
     </div>
@@ -367,92 +286,70 @@
 <script>
     let currentUserName = null;
     let isTyping = false;
-    let isListening = false;
-    let recognition = null;
-
-    // Auto-resize textarea
+    let mouthAnimationInterval = null;
+    let isMouthAnimating = false;
+    
     const textarea = document.getElementById('userInput');
     function autoResize() {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     }
     textarea.addEventListener('input', autoResize);
-    
     textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
     });
-
-    // Speech Recognition
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.lang = 'sw-TZ';
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onresult = function(event) {
-            const speechText = event.results[0][0].transcript;
-            textarea.value = speechText;
-            autoResize();
-            document.getElementById('voiceBtn').classList.remove('listening');
-            isListening = false;
-            sendMessage();
-        };
-
-        recognition.onerror = function() {
-            document.getElementById('voiceBtn').classList.remove('listening');
-            isListening = false;
-        };
+    
+    function startTalkingAnimation() {
+        if (mouthAnimationInterval) clearInterval(mouthAnimationInterval);
+        isMouthAnimating = true;
+        document.getElementById('avatarStatus').innerHTML = '🔊 Inazungumza...';
+        const mouth = document.querySelector('#avatarImage svg ellipse');
+        let step = 0;
+        mouthAnimationInterval = setInterval(() => {
+            if (!isMouthAnimating) return;
+            if (mouth) mouth.setAttribute('ry', step % 2 === 0 ? 12 : 4);
+            step++;
+        }, 150);
     }
-
-    function startListening() {
-        if (!recognition) {
-            addAIMessage("Samahani, kifaa chako hakina uwezo wa kutambua sauti. 😊");
-            return;
-        }
-        if (isListening) {
-            recognition.stop();
-            document.getElementById('voiceBtn').classList.remove('listening');
-            isListening = false;
-        } else {
-            recognition.start();
-            isListening = true;
-            document.getElementById('voiceBtn').classList.add('listening');
-        }
+    
+    function stopTalkingAnimation() {
+        isMouthAnimating = false;
+        if (mouthAnimationInterval) { clearInterval(mouthAnimationInterval); mouthAnimationInterval = null; }
+        const mouth = document.querySelector('#avatarImage svg ellipse');
+        if (mouth) mouth.setAttribute('ry', 8);
+        document.getElementById('avatarStatus').innerHTML = '😊';
     }
-
-    document.getElementById('voiceBtn').addEventListener('click', startListening);
-
-    // Text-to-Speech
+    
     function speakText(button, text) {
+        startTalkingAnimation();
         if (!window.speechSynthesis) return;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'sw';
         utterance.rate = 0.9;
+        utterance.onend = () => stopTalkingAnimation();
+        utterance.onerror = () => stopTalkingAnimation();
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
-        const original = button.innerHTML;
-        button.innerHTML = '🔊 Inasoma...';
-        setTimeout(() => { button.innerHTML = original; }, 2000);
+        if (button) {
+            const original = button.innerHTML;
+            button.innerHTML = '🔊 Inasoma...';
+            setTimeout(() => { button.innerHTML = original; }, 2000);
+        }
     }
-
-    document.getElementById('welcomeSpeakBtn').onclick = function() {
-        const welcomeText = document.querySelector('.ai-text').innerText;
-        speakText(this, welcomeText);
-    };
-
-    // Type effect
+    
     async function typeText(element, text, speed = 12) {
+        startTalkingAnimation();
         element.innerHTML = '';
         for (let i = 0; i < text.length; i++) {
             element.innerHTML += text[i];
             await new Promise(r => setTimeout(r, speed));
         }
+        stopTalkingAnimation();
     }
-
+    
     async function addAIMessage(text) {
         const chatArea = document.getElementById('chatArea');
         const div = document.createElement('div');
@@ -471,21 +368,16 @@
         chatArea.scrollTop = chatArea.scrollHeight;
         await typeText(div.querySelector('.ai-text'), text, 10);
     }
-
+    
     function addUserMessage(name, text) {
         const chatArea = document.getElementById('chatArea');
         const div = document.createElement('div');
         div.className = 'message-user';
-        div.innerHTML = `
-            <div class="user-bubble">
-                <div class="user-name">${escapeHtml(name)}</div>
-                <div>${escapeHtml(text)}</div>
-            </div>
-        `;
+        div.innerHTML = `<div class="user-bubble"><div class="user-name">${escapeHtml(name)}</div><div>${escapeHtml(text)}</div></div>`;
         chatArea.appendChild(div);
         chatArea.scrollTop = chatArea.scrollHeight;
     }
-
+    
     function escapeHtml(str) {
         return str.replace(/[&<>]/g, function(m) {
             if (m === '&') return '&amp;';
@@ -494,34 +386,24 @@
             return m;
         });
     }
-
+    
     async function showTyping() {
         const chatArea = document.getElementById('chatArea');
         const typingDiv = document.createElement('div');
         typingDiv.className = 'message-ai';
         typingDiv.id = 'typingIndicator';
-        typingDiv.innerHTML = `
-            <div class="ai-bubble">
-                <div class="typing-indicator">
-                    <span></span><span></span><span></span>
-                </div>
-            </div>
-        `;
+        typingDiv.innerHTML = `<div class="ai-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
         chatArea.appendChild(typingDiv);
         chatArea.scrollTop = chatArea.scrollHeight;
         return typingDiv;
     }
-
-    function removeTyping() {
-        const typing = document.getElementById('typingIndicator');
-        if (typing) typing.remove();
-    }
-
+    
+    function removeTyping() { const typing = document.getElementById('typingIndicator'); if (typing) typing.remove(); }
+    
     async function fetchReply(message, userName) {
         try {
             const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: message, userName: userName })
             });
             const data = await response.json();
@@ -530,13 +412,12 @@
             return "Samahani, kuna tatizo. 😊";
         }
     }
-
+    
     async function sendMessage() {
         let msg = textarea.value.trim();
         if (!msg || isTyping) return;
         textarea.value = '';
         autoResize();
-
         if (!currentUserName) {
             currentUserName = msg;
             addUserMessage(msg, msg);
@@ -544,7 +425,6 @@
             await addAIMessage(reply);
             return;
         }
-
         addUserMessage(currentUserName, msg);
         const typingDiv = await showTyping();
         isTyping = true;
@@ -553,39 +433,17 @@
         isTyping = false;
         await addAIMessage(reply);
     }
-
-    function resetConversation() {
-        currentUserName = null;
-        const chatArea = document.getElementById('chatArea');
-        chatArea.innerHTML = '';
-        const welcomeDiv = document.createElement('div');
-        welcomeDiv.className = 'message-ai';
-        welcomeDiv.innerHTML = `
-            <div class="ai-bubble">
-                <div class="ai-header">
-                    <div class="ai-avatar">✨</div>
-                    <span class="ai-name">Nexora AI</span>
-                    <button class="speak-btn" onclick="speakText(this, 'Tafadhali niambie jina lako kuanza.')">🔊 Soma</button>
-                </div>
-                <div class="ai-text">Tafadhali niambie jina lako kuanza. 😊🚀</div>
-            </div>
-        `;
-        chatArea.appendChild(welcomeDiv);
-        textarea.value = '';
-        autoResize();
+    
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/';
     }
-
+    
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('resetBtn').addEventListener('click', resetConversation);
-</script>
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registered:', reg))
-            .catch(err => console.log('SW error:', err));
-    });
-}
+    document.getElementById('welcomeSpeakBtn').onclick = function() {
+        const welcomeText = document.querySelector('.ai-text').innerText;
+        speakText(this, welcomeText);
+    };
 </script>
 </body>
-    </html>
+            </html>
