@@ -231,7 +231,7 @@ def ask_groq(question, user_name, history):
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
         sys_prompt = f"Wewe ni Nexora AI. Jina lako ni NEXORA AI. Ulitengenezwa na Denis Albert Mwombeki, mwanafunzi wa St. Amedeus. Jina la mtumiaji ni {user_name}. Jibu kwa KISWAHILI tu. Tumia emoji. Mazungumzo: {history}"
-        payload = {"model": GROQ_MODEL, "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}], "temperature": 0.7, "max_tokens": 400}
+        payload = {"model": GROQ_MODEL, "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}], "temperature": 0.7, "max_tokens": 800}
         resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
