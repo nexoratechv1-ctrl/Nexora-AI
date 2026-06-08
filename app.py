@@ -253,9 +253,7 @@ def ask_groq(question, user_name, history):
         return fallback(question, user_name)
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        sys_prompt = f"""Wewe ni Nexora AI, chatbot rafiki anayezungumza Kiswahili.
-Umetengenezwa na timu ya Nexora Tech iliyoongozwa na Denis Albert.
-Wengine katika timu ni: Joel Davison, Jack Phelemon, Joshua Tech (DMD.TZ), Kyan Miccah.
+        sys_prompt = f"""
 
 Jina la mtumiaji ni {user_name}.
 
