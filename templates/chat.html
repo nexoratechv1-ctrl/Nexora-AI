@@ -635,6 +635,36 @@
         textarea.value = '';
         autoResize();
 
-        if (!currentUserName) {
+         if (!currentUserName) {
             currentUserName = msg;
+            addUserMessage(msg, msg);
+            const reply = await fetchReply(msg, currentUserName);
+            await addAIMessage(reply);
+            return;
+        }
+
+        addUserMessage(currentUserName, msg);
+        const typingDiv = await showTyping();
+        isTyping = true;
+        const reply = await fetchReply(msg, currentUserName);
+        removeTyping();
+        isTyping = false;
+        await addAIMessage(reply);
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/';
+    }
+
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('welcomeSpeakBtn').onclick = function() {
+        const welcomeText = document.querySelector('.ai-text').innerText;
+        speakText(this, welcomeText);
+    };
+</script>
+</body>
+</html>
+```
+
        
