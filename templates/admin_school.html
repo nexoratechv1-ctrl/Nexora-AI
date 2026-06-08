@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>St. Amedeus - Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, 'Segoe UI', sans-serif;
+            background: #0f0f13;
+            color: #e4e4e7;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #c084fc; margin-bottom: 20px; }
+        h2 { color: #a855f7; margin: 20px 0 10px 0; }
+        .card {
+            background: #1a1a24;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #2a2a3a;
+        }
+        input, textarea, select {
+            width: 100%;
+            background: #0f0f13;
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            margin-bottom: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            cursor: pointer;
+        }
+        .job-card, .announcement-card, .application-card {
+            background: #0f0f13;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #a855f7;
+        }
+        .delete-btn { background: #ef4444; margin-top: 10px; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #2a2a3a;
+            padding-bottom: 10px;
+        }
+        .tab {
+            background: transparent;
+            color: #a1a1aa;
+            border: none;
+        }
+        .tab.active {
+            color: #c084fc;
+            border-bottom: 2px solid #c084fc;
+            border-radius: 0;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🏫 St. Amedeus - Admin Dashboard</h1>
+    
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('announcements')">📢 Matangazo</button>
+        <button class="tab" onclick="showTab('jobs')">💼 Nafasi za Kazi</button>
+        <button class="tab" onclick="showTab('applications')">📝 Maombi</button>
+    </div>
+    
+    <div id="announcementsTab" class="tab-content">
+        <div class="card">
+            <h3>➕ Tangazo Jipya</h3>
+            <input type="text" id="annTitle" placeholder="Kichwa cha tangazo">
+            <textarea id="annContent" rows="3" placeholder="Maelezo ya tangazo"></textarea>
+            <input type="date" id="annDate">
+            <label><input type="checkbox" id="annImportant"> Muhimu (Important)</label>
+            <button onclick="addAnnouncement()">📢 Ongeza Tangazo</button>
+        </div>
+        <div id="announcementsList">
+            <h3>📢 Matangazo yaliyopo</h3>
+            <div id="announcementsContainer"></div>
+        </div>
+    </div>
+    
+    <div id="jobsTab" class="tab-content hidden">
+        <div class="card">
+            <h3>➕ Nafasi Mpya ya Kazi</h3>
+            <input type="text" id="jobTitle" placeholder="Jina la nafasi">
+            <textarea id="jobRequirements" rows="3" placeholder="Mahitaji"></textarea>
+            <input type="date" id="jobDeadline">
+            <button onclick="addJob()">💼 Ongeza Nafasi</button>
+        </div>
+        <div id="jobsList">
+            <h3>💼 Nafasi za Kazi zilizopo</h3>
+            <div id="jobsContainer"></div>
+        </div>
+    </div>
+    
+    <div id="applicationsTab" class="tab-content hidden">
+        <div id="applicationsList">
+            <h3>📝 Maombi yaliyopokelewa</h3>
+            <div id="applicationsContainer"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function showTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+        document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+        if (tabName === 'announcements') loadAnnouncements();
+        if (tabName === 'jobs') loadJobs();
+        if (tabName === 'applications') loadApplications();
+    }
+    
+    async function loadAnnouncements() {
+        const res = await fetch('/api/school/announcements');
+        const data = await res.json();
+        const container = document.getElementById('announcementsContainer');
+        container.innerHTML = '';
+        data.announcements.forEach(ann => {
+            const div = document.createElement('div');
+            div.className = 'announcement-card';
+            div.innerHTML = `<strong>${ann.title}</strong><br><small>${ann.date} ${ann.important ? '🔴 MUHIMU' : ''}</small><p>${ann.content}</p><button class="delete-btn" onclick="deleteAnnouncement(${ann.id})">🗑️ Futa</button>`;
+            container.appendChild(div);
+        });
+    }
+    
+    async function loadJobs() {
+        const res = await fetch('/api/school/jobs');
+        const data = await res.json();
+        const container = document.getElementById('jobsContainer');
+        container.innerHTML = '';
+        data.jobs.forEach(job => {
+            const div = document.createElement('div');
+            div.className = 'job-card';
+            div.innerHTML = `<strong>${job.title}</strong><br><small>Deadline: ${job.deadline}</small><p>${job.requirements}</p><button class="delete-btn" onclick="deleteJob(${job.id})">🗑️ Futa</button>`;
+            container.appendChild(div);
+        });
+    }
+    
+    async function loadApplications() {
+        const res = await fetch('/api/school/applications');
+        const data = await res.json();
+        const container = document.getElementById('applicationsContainer');
+        container.innerHTML = '';
+        if (data.applications.length === 0) { container.innerHTML = '<p>Hakuna maombi bado.</p>'; return; }
+        data.applications.forEach(app => {
+            const div = document.createElement('div');
+            div.className = 'application-card';
+            div.innerHTML = `<strong>${app.name}</strong> - ${app.email}<br><strong>Nafasi:</strong> ${app.job_title}<br><strong>Uzoefu:</strong> ${app.experience}<br><strong>Sifa:</strong> ${app.qualifications}<br><small>Iliwasilishwa: ${app.date}</small>`;
+            container.appendChild(div);
+        });
+    }
+    
+    async function addAnnouncement() {
+        const title = document.getElementById('annTitle').value;
+        const content = document.getElementById('annContent').value;
+        const date = document.getElementById('annDate').value;
+        const important = document.getElementById('annImportant').checked;
+        await fetch('/api/school/announcements', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content, date, important })
+        });
+        alert('Tangazo limeongezwa!');
+        document.getElementById('annTitle').value = '';
+        document.getElementById('annContent').value = '';
+        document.getElementById('annDate').value = '';
+        document.getElementById('annImportant').checked = false;
+        loadAnnouncements();
+    }
+    
+    async function deleteAnnouncement(id) {
+        await fetch(`/api/school/announcements/${id}`, { method: 'DELETE' });
+        loadAnnouncements();
+    }
+    
+    async function addJob() {
+        const title = document.getElementById('jobTitle').value;
+        const requirements = document.getElementById('jobRequirements').value;
+        const deadline = document.getElementById('jobDeadline').value;
+        await fetch('/api/school/jobs', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, requirements, deadline })
+        });
+        alert('Nafasi ya kazi imeongezwa!');
+        document.getElementById('jobTitle').value = '';
+        document.getElementById('jobRequirements').value = '';
+        document.getElementById('jobDeadline').value = '';
+        loadJobs();
+    }
+    
+    async function deleteJob(id) {
+        await fetch(`/api/school/jobs/${id}`, { method: 'DELETE' });
+        loadJobs();
+    }
+    
+    loadAnnouncements();
+    loadJobs();
+    loadApplications();
+</script>
+</body>
+</html>
