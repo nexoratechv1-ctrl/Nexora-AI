@@ -143,26 +143,38 @@ def is_admin(uid):
     conn.close()
     return r and r[0] == 'admin'
 
+def get_denis_albert_history():
+    return """📖 **HISTORIA YA DENIS ALBERT** 📖
+
+Denis Albert alianza masomo yake katika shule ya msingi ya St. Joseph. Baadaye aliendelea na masomo ya sekondari katika shule ya **St. Amedeus**, moja ya shule bora zaidi Tanzania.
+
+Akiwa na miaka 15, Denis alijifunza mwenyewe lugha za programu kwa kutumia intaneti. Alianza na HTML, CSS, na JavaScript. Hakukuwa na mtu wa kumfundisha — alijifunza kwa bidii na uvumilivu.
+
+Akiwa na miaka 16, alitengeneza website yake ya kwanza. Akiwa na miaka 17, alianzisha **Nexora Tech** pamoja na marafiki zake wenye kipaji.
+
+Akiwa na miaka 18, alikamilisha **Nexora AI** kwa ajili ya Talent Day.
+
+💬 **NUKUU YA DENIS:**
+*"Teknolojia si ngumu. Unachohitaji ni nia, bidii, na ushirikiano. Tanzania inaweza!"*"""
+
 def get_team_info():
-    return """👥 **NEXORA TECH TEAM** 👥
+    return """🤖 **NEXORA AI** 🤖
 
-🤖 **Nexora AI** imetengenezwa na timu ya Nexora Tech iliyoongozwa na:
+🇹🇿 **Nimetengenezwa kwa Ushirikiano wa:** 🇹🇿
 
-🌟 **DENIS ALBERT** - Kiongozi wa Timu (Team Leader) & Programmer Mkuu
-🌟 **JOEL DAVISON** - Backend Developer & Database Expert
-🌟 **JACK PHELEMON** - Frontend Developer & UI Designer
+🌟 **DENIS ALBERT** - Kiongozi wa Timu & Programmer Mkuu
+🌟 **JOEL DAVISON** - Backend Developer
+🌟 **JACK PHELEMON** - Frontend Developer
 🌟 **JOSHUA TECH** - Founder wa DMD.TZ & Technical Advisor
-🌟 **KYAN MICCAH** - AI Specialist & Machine Learning Engineer
+🌟 **KYAN MICCAH** - AI Specialist
 
-🏆 **Wengine waliochangia:**
-• Alpha Kilian - UI/UX Designer
-• Baraka John - QA Tester
-• Emmanuel Peter - Documentation & Support
-• St. Amedeus Tech Club - Washiriki wote
-• DMD.TZ Team - Technical Support
+🤝 **Kwa Ushirikiano na:**
+• St. Amedeus Tech Club
+• DMD.TZ Team
+• Nexora Tech Community
 
-💡 Nexora AI ni matunda ya bidii ya timu nzima ya Nexora Tech!
-🎓 Wote ni wanafunzi wa St. Amedeus na wana ndoto kubwa ya kuleta teknolojia kwa kila Mtanzania!
+💡 Nexora AI ni matunda ya bidii ya timu nzima!
+🎓 Wote ni wanafunzi wa St. Amedeus.
 
 🔥 *"Teknolojia si ngumu. Unachohitaji ni nia, bidii, na ushirikiano!"* - Denis Albert"""
 
@@ -173,14 +185,16 @@ Nina furaha kuwa nawe. Mimi ni Nexora AI, rafiki yako wa kisasa.
 
 💡 **Unaweza kuniuliza:**
 • Maswali ya kawaida ("Habari", "Mambo vipi?")
-• Kuhusu shule ya St. Amedeus ("Historia ya shule")
-• Kuomba kazi ("Nataka kuomba kazi")
-• Matangazo ("Matangazo ya leo")
+• Kuhusu shule ya St. Amedeus
+• Kuomba kazi
+• Matangazo
 • Kuchora picha ("Chora simba")
 • Kucheza namba ("Cheza namba")
-• Personality test ("Test ya mnyama")
+• Personality test
+• Historia ya Denis Albert
+• Kuhusu timu yangu
 
-🔥 **Ukinitaka kujua zaidi, niulize tu "Unaitwa nani?"**
+🔥 **Ukinitaka kujua zaidi, niulize "Unaitwa nani?"**
 
 Niko tayari kukusaidia! 😊👇"""
 
@@ -253,38 +267,24 @@ def ask_groq(question, user_name, history):
         return fallback(question, user_name)
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        sys_prompt = f"""🤖 **Nexora AI** imetengenezwa na timu ya Nexora Tech iliyoongozwa na:
+        sys_prompt = f"""Wewe ni Nexora AI, chatbot rafiki anayezungumza Kiswahili, umeundwa Tanzania.
 
-🌟 **DENIS ALBERT** - Kiongozi wa Timu (Team Leader) & Programmer Mkuu
-🌟 **JOEL DAVISON** - Backend Developer & Database Expert
-🌟 **JACK PHELEMON** - Frontend Developer & UI Designer
-🌟 **JOSHUA TECH** - Founder wa DMD.TZ & Technical Advisor
-🌟 **KYAN MICCAH** - AI Specialist & Machine Learning Engineer
-
-🏆 **Wengine waliochangia:**
-• Alpha Kilian - UI/UX Designer
-• Baraka John - QA Tester
-• Emmanuel Peter - Documentation & Support
-• St. Amedeus Tech Club - Washiriki wote
-• DMD.TZ Team - Technical Support
-
-💡 Nexora AI ni matunda ya bidii ya timu nzima ya Nexora Tech!
-🎓 Wote ni wanafunzi wa St. Amedeus na wana ndoto kubwa ya kuleta teknolojia kwa kila Mtanzania!
-
-🔥 *"Teknolojia si ngumu. Unachohitaji ni nia, bidii, na ushirikiano!"* - Denis Albert"""
-                   
+Umetengenezwa na timu ya Nexora Tech Tanzania iliyoongozwa na Denis Albert, pamoja na Joel Davison, Jack Phelemon, Joshua Tech (DMD.TZ), na Kyan Miccah, kwa ushirikiano na St. Amedeus Tech Club na DMD.TZ.
 
 Jina la mtumiaji ni {user_name}.
 
 MUHIMU: Jibu kwa KISWAHILI tu. Tumia emoji kidogo.
-USIJITAMBULE KWA NGUVU. Ukisemwa "Unaitwa nani" ndipo utakapojitambulisha kwa timu yako.
+
+Kwa maswali kuhusu timu yako, jibu kwa kujivunia ushirikiano wenu.
+
+USIJITAMBULE KWA NGUVU. Ukisemwa "Unaitwa nani" ndipo utakapojitambulisha.
 
 Mazungumzo yaliyopita: {history[-500:]}"""
         payload = {
             "model": GROQ_MODEL,
             "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": question}],
             "temperature": 0.7,
-            "max_tokens": 400,
+            "max_tokens": 500,
             "top_p": 0.9
         }
         resp = requests.post(GROQ_URL, headers=headers, json=payload, timeout=30)
@@ -297,12 +297,23 @@ Mazungumzo yaliyopita: {history[-500:]}"""
 
 def fallback(question, user_name):
     q = question.lower()
+    
     if "jina lako" in q or "unaitwa nani" in q or "wewe ni nani" in q:
-        return f"Naitwa NEXORA AI! 🚀\n\n{get_team_info()}"
+        return f"""🇹🇿 **Naitwa NEXORA AI!** 🇹🇿
+
+🤖 Nafurahi kukutana nawe, {user_name}!
+
+{get_team_info()}"""
+    
     if "timu" in q or "watengenezaji" in q or "team" in q or "nexora tech" in q:
         return get_team_info()
+    
+    if "historia ya denis" in q or "denis albert" in q or "denis" in q:
+        return get_denis_albert_history()
+    
     if "habari" in q:
         return f"Habari yangu ni nzuri sana, {user_name}! 😊 Na wewe habari yako?"
+    
     return f"Samahani, {user_name}. Sijaelewa vizuri. Jaribu tena! 😊"
 
 @app.route('/static/<path:filename>')
@@ -346,9 +357,7 @@ th,td{{padding:10px;text-align:left;border-bottom:1px solid #2a2a3a}}
 <div class="card"><div class="number">{s['total_conversations']}</div><div>Jumla Mazungumzo</div></div>
 </div>
 <h2>Shughuli za Hivi Karibuni</h2>
-<table>
-<thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th></tr></thead>
-<tbody>'''
+<table><thead><tr><th>Muda</th><th>Mtumiaji</th><th>Kitendo</th></tr></thead><tbody>'''
     for r in s['recent']:
         html += f'<tr><td>{r[0]}</td><td>{r[1] or "Anonymous"}</td><td>{r[2]}</td></tr>'
     html += '</tbody></table><br><button onclick="window.location.href=\'/\'" style="background:#a855f7;padding:10px 20px;border:none;border-radius:8px;color:white;cursor:pointer">← Nyuma</button></body></html>'
